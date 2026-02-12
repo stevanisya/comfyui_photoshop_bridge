@@ -42,7 +42,7 @@ class LoadImageFromPhotoshop:
 
     RETURN_TYPES = ("IMAGE", "MASK",)
     FUNCTION = "load_image"
-    CATEGORY = "image/photoshop_bridge"
+    CATEGORY = "UnaCustom"
 
     def load_image(self, auto_refresh, bridge_port):
         """Load the most recently received image from Photoshop"""
@@ -122,7 +122,7 @@ class SendImageToPhotoshop:
     RETURN_TYPES = ()
     FUNCTION = "send_image"
     OUTPUT_NODE = True
-    CATEGORY = "image/photoshop_bridge"
+    CATEGORY = "UnaCustom"
 
     def send_image(self, images, photoshop_port, layer_name):
         """Send image(s) to Photoshop"""
