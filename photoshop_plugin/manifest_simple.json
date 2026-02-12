@@ -1,0 +1,23 @@
+{
+  "id": "com.comfyui.photoshop.bridge.test",
+  "name": "ComfyUI Bridge Test",
+  "version": "1.0.0",
+  "main": "index_simple.html",
+  "manifestVersion": 4,
+  "host": {
+    "app": "PS",
+    "minVersion": "23.0.0"
+  },
+  "strings": {
+    "panel-label": {
+      "default": "ComfyUI Test"
+    }
+  },
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "test.panel",
+      "label": "panel-label"
+    }
+  ]
+}

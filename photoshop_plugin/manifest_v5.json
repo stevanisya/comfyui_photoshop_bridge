@@ -1,0 +1,32 @@
+{
+  "id": "com.comfyui.photoshop.bridge",
+  "name": "ComfyUI Bridge",
+  "version": "1.0.0",
+  "main": "index.html",
+  "manifestVersion": 5,
+  "host": [
+    {
+      "app": "PS",
+      "minVersion": "24.0.0"
+    }
+  ],
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "comfyui.bridge.panel",
+      "label": {
+        "default": "ComfyUI Bridge"
+      }
+    }
+  ],
+  "requiredPermissions": [
+    {
+      "name": "network",
+      "reason": "Required to communicate with ComfyUI server"
+    },
+    {
+      "name": "localFileSystem",
+      "reason": "Required to export and import images"
+    }
+  ]
+}

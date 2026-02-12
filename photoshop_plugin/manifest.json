@@ -1,0 +1,39 @@
+{
+  "id": "com.comfyui.photoshop.bridge",
+  "name": "ComfyUI Bridge",
+  "version": "1.0.0",
+  "main": "index_runpod.html",
+  "manifestVersion": 4,
+  "host": {
+    "app": "PS",
+    "minVersion": "23.0.0"
+  },
+  "strings": {
+    "panel-label": {
+      "default": "ComfyUI Bridge"
+    }
+  },
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "comfyui.bridge.panel",
+      "label": "panel-label",
+      "minimumSize": {
+        "width": 300,
+        "height": 400
+      },
+      "maximumSize": {
+        "width": 800,
+        "height": 1200
+      },
+      "preferredDockedSize": {
+        "width": 350,
+        "height": 600
+      },
+      "preferredFloatingSize": {
+        "width": 350,
+        "height": 600
+      }
+    }
+  ]
+}

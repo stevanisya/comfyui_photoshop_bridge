@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ComfyUI Bridge</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 16px;
+            margin: 0;
+            background-color: #2d2d2d;
+            color: #e8e8e8;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .section {
+            background: #3d3d3d;
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid #4d4d4d;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #ffffff;
+        }
+
+        .button {
+            width: 100%;
+            padding: 10px 16px;
+            background: #1473e6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .button:hover {
+            background: #0d66d0;
+        }
+
+        .button:active {
+            background: #095aba;
+        }
+
+        .button:disabled {
+            background: #4d4d4d;
+            color: #8d8d8d;
+            cursor: not-allowed;
+        }
+
+        .button-secondary {
+            background: #505050;
+        }
+
+        .button-secondary:hover {
+            background: #5d5d5d;
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 12px;
+            color: #b8b8b8;
+            margin-bottom: 6px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 8px 12px;
+            background: #2d2d2d;
+            border: 1px solid #4d4d4d;
+            border-radius: 4px;
+            color: #e8e8e8;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #1473e6;
+        }
+
+        .status {
+            margin-top: 12px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .status.success {
+            background: rgba(20, 115, 230, 0.2);
+            color: #7db9ff;
+            border: 1px solid rgba(20, 115, 230, 0.4);
+        }
+
+        .status.error {
+            background: rgba(230, 20, 20, 0.2);
+            color: #ff7d7d;
+            border: 1px solid rgba(230, 20, 20, 0.4);
+        }
+
+        .status.info {
+            background: rgba(100, 100, 100, 0.2);
+            color: #b8b8b8;
+            border: 1px solid rgba(100, 100, 100, 0.4);
+        }
+
+        .export-options {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #8d8d8d;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #4d4d4d;
+        }
+
+        .server-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .server-indicator.running {
+            background: #00ff00;
+            box-shadow: 0 0 4px #00ff00;
+        }
+
+        .server-indicator.stopped {
+            background: #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Send to ComfyUI Section -->
+        <div class="section">
+            <div class="section-title">📤 Send to ComfyUI</div>
+
+            <div class="input-group">
+                <label class="input-label">ComfyUI Bridge Port</label>
+                <input type="number" id="comfyui-port" class="input-field" value="8190" min="1024" max="65535">
+            </div>
+
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="export-type" value="layer" checked>
+                    Active Layer
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="export-type" value="document">
+                    Full Document
+                </label>
+            </div>
+
+            <button id="send-to-comfyui" class="button">Send to ComfyUI</button>
+            <div id="send-status" class="status"></div>
+        </div>
+
+        <!-- Receive from ComfyUI Section -->
+        <div class="section">
+            <div class="section-title">📥 Receive from ComfyUI</div>
+
+            <div class="input-group">
+                <label class="input-label">Listen Port</label>
+                <input type="number" id="listen-port" class="input-field" value="8191" min="1024" max="65535">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">
+                    <span class="server-indicator" id="server-indicator"></span>
+                    Server Status
+                </label>
+                <button id="toggle-server" class="button button-secondary">Start Server</button>
+            </div>
+
+            <div id="receive-status" class="status"></div>
+
+            <div class="stats">
+                <span>Images received: <strong id="images-received">0</strong></span>
+                <span>Last received: <strong id="last-received">Never</strong></span>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <div class="section">
+            <div class="section-title">⚙️ Settings</div>
+
+            <div class="input-group">
+                <label class="input-label">Default Layer Name Prefix</label>
+                <input type="text" id="layer-prefix" class="input-field" value="ComfyUI" placeholder="e.g., ComfyUI">
+            </div>
+
+            <button id="test-connection" class="button button-secondary">Test Connection</button>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>

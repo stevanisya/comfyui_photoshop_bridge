@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test</title>
+    <style>
+        body { padding: 20px; font-family: sans-serif; }
+        button { padding: 10px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h2>Test Plugin</h2>
+    <button id="test-btn">Click to Test</button>
+    <p id="result"></p>
+
+    <script>
+        document.getElementById('test-btn').addEventListener('click', () => {
+            document.getElementById('result').textContent = 'JavaScript is working!';
+            alert('Button clicked! JavaScript works.');
+        });
+    </script>
+</body>
+</html>
