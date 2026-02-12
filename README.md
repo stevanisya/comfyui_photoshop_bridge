@@ -11,14 +11,12 @@ A bridge to seamlessly transfer images between Adobe Photoshop and ComfyUI.
 
 ```
 comfyui_photoshop_bridge/
-├── comfyui_nodes/          # ComfyUI custom nodes
-│   ├── __init__.py
-│   ├── photoshop_bridge_nodes.py
-│   └── README.md
+├── __init__.py             # ComfyUI node loader
+├── photoshop_bridge_nodes.py  # Custom node implementations
+├── requirements.txt
 ├── photoshop_plugin/       # Photoshop UXP plugin
 │   ├── manifest.json
-│   ├── main.js
-│   ├── index.html
+│   ├── index_runpod.html
 │   └── README.md
 └── README.md
 ```
@@ -36,8 +34,8 @@ cd /workspace/ComfyUI/custom_nodes
 # Clone the repository
 git clone https://github.com/stevanisya/comfyui_photoshop_bridge.git
 
-# Install Python dependencies
-cd comfyui_photoshop_bridge/comfyui_nodes
+# Install Python dependencies (optional - uses standard ComfyUI dependencies)
+cd comfyui_photoshop_bridge
 pip install -r requirements.txt
 
 # Restart ComfyUI

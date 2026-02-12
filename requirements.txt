@@ -1,0 +1,1 @@
+# No additional requirements needed - uses standard ComfyUI dependencies
