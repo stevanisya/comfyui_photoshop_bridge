@@ -290,15 +290,21 @@
                 }], {});
 
                 showStatus('send-status', 'info', '⏳ Reading file...');
-                const fileData = await tempFile.read({ format: formats.binary });
+
+                // Read file as ArrayBuffer
+                const arrayBuffer = await tempFile.read({ format: formats.binary });
 
                 showStatus('send-status', 'info', '⏳ Uploading to ComfyUI...');
 
                 // Upload to ComfyUI
                 const url = getComfyUIUrl();
                 const formData = new FormData();
-                const blob = new Blob([fileData], { type: 'image/png' });
-                formData.append('image', blob, `${layerName}.png`);
+
+                // Create blob from ArrayBuffer with proper filename
+                const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
+                const blob = new Blob([arrayBuffer], { type: 'image/png' });
+
+                formData.append('image', blob, filename);
                 formData.append('overwrite', 'true');
 
                 const response = await fetch(`${url}/upload/image`, {

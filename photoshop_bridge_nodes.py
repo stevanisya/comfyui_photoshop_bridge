@@ -4,6 +4,7 @@ Simple nodes to work with images uploaded from Photoshop
 """
 
 import os
+import time
 import folder_paths
 from PIL import Image
 import numpy as np
@@ -14,6 +15,7 @@ class LoadImageFromPhotoshop:
     """
     Load images that were uploaded from Photoshop plugin
     This node provides a convenient way to access recent uploads
+    The dropdown list automatically refreshes when new images are added
     """
 
     @classmethod
@@ -71,13 +73,23 @@ class LoadImageFromPhotoshop:
 
     @classmethod
     def IS_CHANGED(cls, image):
-        """Force refresh when image changes"""
+        """Force refresh - check for new files in input folder"""
         input_dir = folder_paths.get_input_directory()
-        image_path = os.path.join(input_dir, image)
 
-        if os.path.exists(image_path):
-            return os.path.getmtime(image_path)
-        return float("inf")
+        # Return the latest modification time of any file in the input directory
+        # This will refresh when new images are added
+        if os.path.isdir(input_dir):
+            try:
+                files = [f for f in os.listdir(input_dir)
+                        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
+                if files:
+                    # Get the newest file's modification time
+                    latest = max([os.path.getmtime(os.path.join(input_dir, f)) for f in files])
+                    return latest
+            except:
+                pass
+
+        return time.time()
 
 
 class SaveImageToPhotoshop:
