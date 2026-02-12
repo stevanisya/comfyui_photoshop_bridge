@@ -1,132 +1,111 @@
 """
 ComfyUI-Photoshop Bridge Nodes
-Enables bidirectional image transfer between Photoshop and ComfyUI
+Simple nodes to work with images uploaded from Photoshop
 """
 
 import os
-import io
-import base64
-import threading
-from flask import Flask, request, jsonify
+import folder_paths
 from PIL import Image
 import numpy as np
 import torch
-import folder_paths
-import requests
-from datetime import datetime
-
-# Global variables for the Flask server
-bridge_app = Flask(__name__)
-bridge_server = None
-received_images = {}
 
 
 class LoadImageFromPhotoshop:
     """
-    Receives images from Photoshop via HTTP and loads them into ComfyUI workflow
+    Load images that were uploaded from Photoshop plugin
+    This node provides a convenient way to access recent uploads
     """
-
-    def __init__(self):
-        self.type = "input"
-        self.bridge_port = 8190
-        self.latest_image_id = None
 
     @classmethod
     def INPUT_TYPES(cls):
+        # Get list of images from input folder
+        input_dir = folder_paths.get_input_directory()
+        files = []
+
+        if os.path.isdir(input_dir):
+            files = [f for f in os.listdir(input_dir)
+                    if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
+            files.sort(key=lambda x: os.path.getmtime(os.path.join(input_dir, x)), reverse=True)
+
         return {
             "required": {
-                "auto_refresh": (["enabled", "disabled"], {"default": "enabled"}),
-                "bridge_port": ("INT", {"default": 8190, "min": 1024, "max": 65535}),
+                "image": (files if files else ["no_images_found.png"],),
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "MASK",)
+    RETURN_TYPES = ("IMAGE", "MASK")
     FUNCTION = "load_image"
     CATEGORY = "UnaCustom"
 
-    def load_image(self, auto_refresh, bridge_port):
-        """Load the most recently received image from Photoshop"""
-        global received_images
+    def load_image(self, image):
+        """Load the selected image"""
+        input_dir = folder_paths.get_input_directory()
+        image_path = os.path.join(input_dir, image)
 
-        # Start the bridge server if not already running
-        self._ensure_server_running(bridge_port)
-
-        if not received_images:
-            # Return a blank image if nothing received yet
+        if not os.path.exists(image_path):
+            # Return blank image if not found
             blank = torch.zeros((1, 64, 64, 3))
             mask = torch.zeros((1, 64, 64))
             return (blank, mask)
 
-        # Get the most recent image
-        latest_id = max(received_images.keys())
-        image_data = received_images[latest_id]
+        img = Image.open(image_path)
 
-        # Convert PIL Image to torch tensor
-        img = image_data['image']
+        # Convert to RGB if needed
+        if img.mode == 'I':
+            img = img.point(lambda i: i * (1 / 255))
+        if img.mode != 'RGB':
+            img = img.convert('RGBA' if 'transparency' in img.info else 'RGB')
+
+        # Convert to numpy array
         img_array = np.array(img).astype(np.float32) / 255.0
 
         # Handle different image modes
-        if img.mode == 'RGB':
-            image_tensor = torch.from_numpy(img_array)[None,]
-            mask = torch.zeros((1, img_array.shape[0], img_array.shape[1]))
-        elif img.mode == 'RGBA':
+        if img.mode == 'RGBA':
             image_tensor = torch.from_numpy(img_array[:, :, :3])[None,]
             mask = torch.from_numpy(img_array[:, :, 3])[None,]
         else:
-            # Convert to RGB if other mode
-            img = img.convert('RGB')
-            img_array = np.array(img).astype(np.float32) / 255.0
             image_tensor = torch.from_numpy(img_array)[None,]
             mask = torch.zeros((1, img_array.shape[0], img_array.shape[1]))
 
         return (image_tensor, mask)
 
-    def _ensure_server_running(self, port):
-        """Ensure the Flask server is running"""
-        global bridge_server
+    @classmethod
+    def IS_CHANGED(cls, image):
+        """Force refresh when image changes"""
+        input_dir = folder_paths.get_input_directory()
+        image_path = os.path.join(input_dir, image)
 
-        if bridge_server is None or not bridge_server.is_alive():
-            self.bridge_port = port
-            bridge_server = threading.Thread(
-                target=self._run_server,
-                args=(port,),
-                daemon=True
-            )
-            bridge_server.start()
-            print(f"[Photoshop Bridge] Server started on port {port}")
-
-    def _run_server(self, port):
-        """Run the Flask server"""
-        bridge_app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+        if os.path.exists(image_path):
+            return os.path.getmtime(image_path)
+        return float("inf")
 
 
-class SendImageToPhotoshop:
+class SaveImageToPhotoshop:
     """
-    Sends images from ComfyUI to Photoshop as new layers
+    Save node optimized for sending back to Photoshop
+    Images are saved in a format that can be easily picked up
     """
 
     def __init__(self):
+        self.output_dir = folder_paths.get_output_directory()
         self.type = "output"
-        self.photoshop_url = "http://localhost:8191"
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "images": ("IMAGE",),
-                "photoshop_port": ("INT", {"default": 8191, "min": 1024, "max": 65535}),
-                "layer_name": ("STRING", {"default": "ComfyUI Output"}),
+                "filename_prefix": ("STRING", {"default": "PhotoshopBridge"}),
             },
         }
 
     RETURN_TYPES = ()
-    FUNCTION = "send_image"
+    FUNCTION = "save_images"
     OUTPUT_NODE = True
     CATEGORY = "UnaCustom"
 
-    def send_image(self, images, photoshop_port, layer_name):
-        """Send image(s) to Photoshop"""
-
+    def save_images(self, images, filename_prefix="PhotoshopBridge"):
+        """Save images to output folder"""
         results = []
 
         for idx, image in enumerate(images):
@@ -134,94 +113,29 @@ class SendImageToPhotoshop:
             img_array = (image.cpu().numpy() * 255).astype(np.uint8)
             pil_image = Image.fromarray(img_array)
 
-            # Convert to PNG bytes
-            img_buffer = io.BytesIO()
-            pil_image.save(img_buffer, format='PNG')
-            img_bytes = img_buffer.getvalue()
+            # Generate filename
+            filename = f"{filename_prefix}_{idx:04d}.png"
+            filepath = os.path.join(self.output_dir, filename)
 
-            # Encode as base64
-            img_base64 = base64.b64encode(img_bytes).decode('utf-8')
+            # Save as PNG
+            pil_image.save(filepath, format='PNG')
 
-            # Send to Photoshop
-            try:
-                url = f"http://localhost:{photoshop_port}/receive_image"
-                payload = {
-                    "image_data": img_base64,
-                    "layer_name": f"{layer_name}_{idx + 1}" if len(images) > 1 else layer_name,
-                    "timestamp": datetime.now().isoformat()
-                }
+            results.append({
+                "filename": filename,
+                "subfolder": "",
+                "type": "output"
+            })
 
-                response = requests.post(url, json=payload, timeout=10)
-
-                if response.status_code == 200:
-                    results.append({"status": "success", "index": idx})
-                    print(f"[Photoshop Bridge] Image {idx + 1} sent successfully")
-                else:
-                    results.append({"status": "error", "index": idx, "message": response.text})
-                    print(f"[Photoshop Bridge] Failed to send image {idx + 1}: {response.text}")
-
-            except Exception as e:
-                results.append({"status": "error", "index": idx, "message": str(e)})
-                print(f"[Photoshop Bridge] Error sending image {idx + 1}: {str(e)}")
-
-        return {"ui": {"results": results}}
-
-
-# Flask routes for receiving images from Photoshop
-@bridge_app.route('/send_image', methods=['POST'])
-def receive_from_photoshop():
-    """Endpoint to receive images from Photoshop"""
-    global received_images
-
-    try:
-        data = request.json
-        image_data_b64 = data.get('image_data')
-        layer_name = data.get('layer_name', 'Photoshop Layer')
-
-        if not image_data_b64:
-            return jsonify({"status": "error", "message": "No image data provided"}), 400
-
-        # Decode base64 image
-        image_bytes = base64.b64decode(image_data_b64)
-        image = Image.open(io.BytesIO(image_bytes))
-
-        # Store the image with a timestamp ID
-        image_id = len(received_images) + 1
-        received_images[image_id] = {
-            "image": image,
-            "layer_name": layer_name,
-            "timestamp": datetime.now().isoformat()
-        }
-
-        print(f"[Photoshop Bridge] Received image: {layer_name} (ID: {image_id})")
-
-        return jsonify({
-            "status": "success",
-            "message": "Image received",
-            "image_id": image_id
-        }), 200
-
-    except Exception as e:
-        print(f"[Photoshop Bridge] Error receiving image: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-@bridge_app.route('/status', methods=['GET'])
-def status():
-    """Health check endpoint"""
-    return jsonify({
-        "status": "running",
-        "received_images_count": len(received_images)
-    }), 200
+        return {"ui": {"images": results}}
 
 
 # Register nodes with ComfyUI
 NODE_CLASS_MAPPINGS = {
     "LoadImageFromPhotoshop": LoadImageFromPhotoshop,
-    "SendImageToPhotoshop": SendImageToPhotoshop,
+    "SaveImageToPhotoshop": SaveImageToPhotoshop,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "LoadImageFromPhotoshop": "Load Image from Photoshop",
-    "SendImageToPhotoshop": "Send Image to Photoshop",
+    "SaveImageToPhotoshop": "Save Image to Photoshop",
 }

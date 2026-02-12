@@ -1,5 +1,1 @@
-flask>=2.3.0
-pillow>=9.5.0
-requests>=2.31.0
-numpy>=1.24.0
-torch>=2.0.0
+# No additional requirements needed - uses standard ComfyUI dependencies
