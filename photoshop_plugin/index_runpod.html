@@ -291,8 +291,17 @@
 
                 showStatus('send-status', 'info', '⏳ Reading file...');
 
-                // Read file as ArrayBuffer
-                const arrayBuffer = await tempFile.read({ format: formats.binary });
+                // Read file - try without specifying format first
+                let fileData;
+                try {
+                    // Try reading as ArrayBuffer (no format specified)
+                    fileData = await tempFile.read();
+                } catch (e) {
+                    console.log("Read without format failed, trying binary:", e);
+                    fileData = await tempFile.read({ format: formats.binary });
+                }
+
+                console.log("File data type:", typeof fileData, "Length:", fileData?.byteLength || fileData?.length);
 
                 showStatus('send-status', 'info', '⏳ Uploading to ComfyUI...');
 
@@ -300,9 +309,21 @@
                 const url = getComfyUIUrl();
                 const formData = new FormData();
 
-                // Create blob from ArrayBuffer with proper filename
+                // Create blob from file data with proper filename
                 const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
+
+                // Ensure we have a proper ArrayBuffer
+                let arrayBuffer;
+                if (fileData instanceof ArrayBuffer) {
+                    arrayBuffer = fileData;
+                } else if (fileData.buffer instanceof ArrayBuffer) {
+                    arrayBuffer = fileData.buffer;
+                } else {
+                    throw new Error("Failed to read file as binary data");
+                }
+
                 const blob = new Blob([arrayBuffer], { type: 'image/png' });
+                console.log("Blob created:", blob.size, "bytes");
 
                 formData.append('image', blob, filename);
                 formData.append('overwrite', 'true');

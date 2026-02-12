@@ -27,6 +27,7 @@ class LoadImageFromPhotoshop:
         if os.path.isdir(input_dir):
             files = [f for f in os.listdir(input_dir)
                     if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
+            # Sort by modification time, newest first
             files.sort(key=lambda x: os.path.getmtime(os.path.join(input_dir, x)), reverse=True)
 
         return {
