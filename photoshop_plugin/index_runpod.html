@@ -275,72 +275,72 @@
                     ? doc.activeLayers[0].name
                     : doc.name;
 
-                showStatus('send-status', 'info', '⏳ Exporting image...');
+                showStatus('send-status', 'info', '⏳ Getting image data...');
 
                 const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
 
-                // Use system temp path instead of UXP paths (batchPlay doesn't support UXP tokens)
-                const exportPath = `/tmp/${filename}`;
+                console.log("Using imaging API to get pixels...");
 
-                console.log("Exporting to:", exportPath);
-
-                // Export using batchPlay with system path (requires modal scope)
-                try {
-                    const core = require("photoshop").core;
-                    await core.executeAsModal(async () => {
-                        await require("photoshop").action.batchPlay([{
-                            _obj: "exportDocument",
-                            _target: [{ _ref: "document", _id: doc.id }],
-                            exportIn: { _path: exportPath, _kind: "local" },
-                            exportAs: { _obj: "PNGFormat" },
-                            copy: true
-                        }], {});
-                    }, { commandName: "Export Document" });
-                    console.log("Export completed successfully");
-                } catch (exportError) {
-                    console.error("Export error:", exportError);
-                    throw new Error("Export failed: " + exportError.message);
-                }
-
-                showStatus('send-status', 'info', '⏳ Reading file...');
-
-                // Wait for file to be fully written
-                await new Promise(resolve => setTimeout(resolve, 500));
-
-                // Get UXP file entry for the temp file
-                console.log("Getting file entry from system path...");
-                let exportFile;
-                try {
-                    const fileUrl = `file://${exportPath}`;
-                    exportFile = await localFileSystem.createEntryWithUrl(fileUrl);
-                    console.log("Got file entry");
-                } catch (entryError) {
-                    console.error("Error getting file entry:", entryError);
-                    throw new Error("Could not access exported file: " + entryError.message);
-                }
-
-                console.log("Reading file...");
+                // Use imaging API to get pixels directly (no file system needed)
                 let fileBlob;
                 try {
-                    // Read as Uint8Array first, then convert to Blob
-                    const uint8Array = await exportFile.read({ format: formats.binary });
-                    console.log("Read file data, length:", uint8Array.byteLength || uint8Array.length);
+                    const core = require("photoshop").core;
+                    const imaging = require("photoshop").imaging;
 
-                    // Convert to Blob
-                    fileBlob = new Blob([uint8Array], { type: 'image/png' });
-                    console.log("Created blob, size:", fileBlob.size);
-                } catch (readError) {
-                    console.error("Read error:", readError);
-                    throw new Error("Could not read exported file: " + readError.message);
-                }
+                    const pixelData = await core.executeAsModal(async () => {
+                        // Get document bounds
+                        const bounds = doc.bounds;
+                        const width = bounds.right - bounds.left;
+                        const height = bounds.bottom - bounds.top;
 
-                // Clean up temp file
-                console.log("Cleaning up temp file...");
-                try {
-                    await exportFile.delete();
-                    console.log("Cleaned up export file");
-                } catch (e) {
-                    console.warn("Could not delete export file:", e);
+                        console.log(`Document size: ${width}x${height}`);
+
+                        // Get pixel data (RGBA)
+                        const pixels = await imaging.getPixels({
+                            documentID: doc.id,
+                            sourceBounds: {
+                                left: bounds.left,
+                                top: bounds.top,
+                                right: bounds.right,
+                                bottom: bounds.bottom
+                            },
+                            targetSize: {
+                                width: width,
+                                height: height
+                            }
+                        });
+
+                        return { pixels, width, height };
+                    }, { commandName: "Get Pixels" });
+
+                    console.log("Got pixel data, converting to PNG...");
+
+                    // Create canvas and encode to PNG
+                    const canvas = document.createElement('canvas');
+                    canvas.width = pixelData.width;
+                    canvas.height = pixelData.height;
+                    const ctx = canvas.getContext('2d');
+
+                    // Create ImageData from pixels
+                    const imageData = ctx.createImageData(pixelData.width, pixelData.height);
+                    imageData.data.set(pixelData.pixels);
+                    ctx.putImageData(imageData, 0, 0);
+
+                    // Convert canvas to blob
+                    fileBlob = await new Promise((resolve, reject) => {
+                        canvas.toBlob((blob) => {
+                            if (blob) {
+                                resolve(blob);
+                            } else {
+                                reject(new Error("Failed to create blob from canvas"));
+                            }
+                        }, 'image/png');
+                    });
+
+                    console.log("Created PNG blob, size:", fileBlob.size);
+                } catch (imagingError) {
+                    console.error("Imaging error:", imagingError);
+                    throw new Error("Could not get image data: " + imagingError.message);
                 }
 
                 showStatus('send-status', 'info', '⏳ Uploading to ComfyUI...');
