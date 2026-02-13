@@ -279,9 +279,9 @@
 
                 const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
 
-                // Export using batchPlay - use user's Documents folder for better compatibility
-                const documentsFolder = await localFileSystem.getFolder({initialLocation: {userDocuments: true}});
-                const exportFile = await documentsFolder.createFile(filename, { overwrite: true });
+                // Export using batchPlay - use desktop folder for better permissions
+                const desktopFolder = await localFileSystem.getFolder();
+                const exportFile = await desktopFolder.createFile(filename, { overwrite: true });
 
                 console.log("Exporting to:", exportFile.nativePath);
 
