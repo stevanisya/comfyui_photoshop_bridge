@@ -393,8 +393,15 @@
 
                     console.log("Got pixel data, converting to PNG...");
 
+                    // Convert to Uint8Array if needed
+                    const pixelArray = pixelData.pixels instanceof Uint8Array
+                        ? pixelData.pixels
+                        : new Uint8Array(pixelData.pixels);
+
+                    console.log("Pixel array length:", pixelArray.length);
+
                     // UXP canvas doesn't support ImageData operations, so we manually encode PNG
-                    fileBlob = createPNG(pixelData.pixels, pixelData.width, pixelData.height);
+                    fileBlob = createPNG(pixelArray, pixelData.width, pixelData.height);
 
                     console.log("Created PNG blob, size:", fileBlob.size);
                 } catch (imagingError) {
