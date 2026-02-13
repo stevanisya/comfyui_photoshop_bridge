@@ -323,28 +323,20 @@
 
                     console.log("Got pixel data, converting to PNG...");
 
-                    // Create canvas and encode to PNG
+                    // UXP has very limited canvas support, so we use getImageData to get an empty ImageData
                     const canvas = document.createElement('canvas');
                     canvas.width = pixelData.width;
                     canvas.height = pixelData.height;
                     const ctx = canvas.getContext('2d');
 
-                    // Create ImageData using constructor (UXP doesn't support ctx.createImageData)
-                    const imageData = new ImageData(
-                        new Uint8ClampedArray(pixelData.pixels),
-                        pixelData.width,
-                        pixelData.height
-                    );
+                    // Get empty ImageData from canvas (this should work)
+                    const imageData = ctx.getImageData(0, 0, pixelData.width, pixelData.height);
 
-                    // Try to put image data on canvas
-                    try {
-                        ctx.putImageData(imageData, 0, 0);
-                    } catch (putError) {
-                        console.warn("putImageData not supported, trying drawImage approach");
-                        // If putImageData doesn't work, try creating ImageBitmap
-                        const imageBitmap = await createImageBitmap(imageData);
-                        ctx.drawImage(imageBitmap, 0, 0);
-                    }
+                    // Copy our pixel data into it
+                    imageData.data.set(pixelData.pixels);
+
+                    // Put it back on the canvas
+                    ctx.putImageData(imageData, 0, 0);
 
                     // Convert canvas to blob
                     fileBlob = await new Promise((resolve, reject) => {
