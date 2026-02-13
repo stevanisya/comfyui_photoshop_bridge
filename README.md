@@ -1,5 +1,7 @@
 # ComfyUI-Photoshop Bridge
 
+> ⚠️ **Work in Progress** - This project is under active development. Some features may not work as expected yet.
+
 A bridge to seamlessly transfer images between Adobe Photoshop and ComfyUI.
 
 ## Features
