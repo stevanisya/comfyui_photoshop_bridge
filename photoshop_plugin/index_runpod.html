@@ -280,16 +280,22 @@
                 const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
 
                 // Use Photoshop imaging API to get pixels directly - no file I/O needed!
+                // Must be called inside executeAsModal for security
+                const core = require("photoshop").core;
                 const imaging = require("photoshop").imaging;
 
                 console.log("Getting pixel data...");
-                const pixmap = await imaging.getPixels({
-                    sourceBounds: {
-                        left: 0,
-                        top: 0,
-                        right: doc.width,
-                        bottom: doc.height
-                    }
+                const pixmap = await core.executeAsModal(async () => {
+                    return await imaging.getPixels({
+                        sourceBounds: {
+                            left: 0,
+                            top: 0,
+                            right: doc.width,
+                            bottom: doc.height
+                        }
+                    });
+                }, {
+                    commandName: "Get Image Data for ComfyUI"
                 });
 
                 console.log("Got pixmap, size:", pixmap.imageData.width, "x", pixmap.imageData.height);
