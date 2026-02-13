@@ -295,7 +295,7 @@
 
                 // Workaround: Get a fresh file entry that can be read
                 // The tempFile from createFile can't be read directly after batchPlay
-                const tempFolder = await localFileSystem.getTemporaryFolder();
+                // Reuse tempFolder from above - no need to get it again
                 const files = await tempFolder.getEntries();
 
                 // Find our file by looking for the newest PNG
