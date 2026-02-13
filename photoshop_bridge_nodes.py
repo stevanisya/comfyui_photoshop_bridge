@@ -13,45 +13,46 @@ import torch
 
 class LoadImageFromPhotoshop:
     """
-    Load images that were uploaded from Photoshop plugin
-    This node provides a convenient way to access recent uploads
-
-    To refresh the image list after uploading from Photoshop:
-    - Toggle the 'Refresh List' checkbox on/off
-    - Or right-click the node and select 'Refresh'
+    Automatically loads the newest image uploaded from Photoshop
+    No manual selection needed - always uses the most recent upload
     """
 
     @classmethod
     def INPUT_TYPES(cls):
-        # Get list of images from input folder
-        input_dir = folder_paths.get_input_directory()
-        files = []
-
-        if os.path.isdir(input_dir):
-            files = [f for f in os.listdir(input_dir)
-                    if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
-            # Sort by modification time, newest first
-            files.sort(key=lambda x: os.path.getmtime(os.path.join(input_dir, x)), reverse=True)
-
         return {
-            "required": {
-                "image": (files if files else ["no_images_found.png"],),
-                "refresh_list": ("BOOLEAN", {
-                    "default": False,
-                    "label_on": "refreshed",
-                    "label_off": "click to refresh"
-                }),
-            },
+            "required": {},
         }
 
     RETURN_TYPES = ("IMAGE", "MASK")
     FUNCTION = "load_image"
     CATEGORY = "UnaCustom"
 
-    def load_image(self, image, refresh_list=False):
-        """Load the selected image"""
+    def load_image(self):
+        """Load the newest image from input folder"""
         input_dir = folder_paths.get_input_directory()
-        image_path = os.path.join(input_dir, image)
+
+        # Get all image files
+        if not os.path.isdir(input_dir):
+            # Return blank image if folder doesn't exist
+            blank = torch.zeros((1, 64, 64, 3))
+            mask = torch.zeros((1, 64, 64))
+            return (blank, mask)
+
+        files = [f for f in os.listdir(input_dir)
+                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
+
+        if not files:
+            # Return blank image if no images found
+            blank = torch.zeros((1, 64, 64, 3))
+            mask = torch.zeros((1, 64, 64))
+            return (blank, mask)
+
+        # Sort by modification time, newest first
+        files.sort(key=lambda x: os.path.getmtime(os.path.join(input_dir, x)), reverse=True)
+
+        # Get the newest file
+        newest_image = files[0]
+        image_path = os.path.join(input_dir, newest_image)
 
         if not os.path.exists(image_path):
             # Return blank image if not found
@@ -81,12 +82,11 @@ class LoadImageFromPhotoshop:
         return (image_tensor, mask)
 
     @classmethod
-    def IS_CHANGED(cls, image, refresh_list=False):
-        """Force refresh - check for new files in input folder"""
+    def IS_CHANGED(cls):
+        """Always check for newest file - auto-refreshes when new images are uploaded"""
         input_dir = folder_paths.get_input_directory()
 
-        # Return the latest modification time + refresh toggle state
-        # This will refresh when new images are added OR when refresh_list is toggled
+        # Return the latest modification time to trigger refresh when new files are added
         if os.path.isdir(input_dir):
             try:
                 files = [f for f in os.listdir(input_dir)
@@ -94,11 +94,11 @@ class LoadImageFromPhotoshop:
                 if files:
                     # Get the newest file's modification time
                     latest = max([os.path.getmtime(os.path.join(input_dir, f)) for f in files])
-                    return (latest, refresh_list)
+                    return latest
             except:
                 pass
 
-        return (time.time(), refresh_list)
+        return time.time()
 
 
 class SaveImageToPhotoshop:

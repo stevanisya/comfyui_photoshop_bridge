@@ -289,19 +289,36 @@
                     copy: true
                 }], {});
 
-                showStatus('send-status', 'info', '⏳ Reading file...');
+                showStatus('send-status', 'info', '⏳ Preparing file for upload...');
 
-                // Read file - try without specifying format first
-                let fileData;
+                // Use File API to create a file directly from the temp file
+                const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
+
+                // Get the file as a native path and use fetch
+                const filePath = tempFile.nativePath;
+                console.log("File path:", filePath);
+
+                // Try reading the file entry directly
+                let fileBlob;
                 try {
-                    // Try reading as ArrayBuffer (no format specified)
-                    fileData = await tempFile.read();
-                } catch (e) {
-                    console.log("Read without format failed, trying binary:", e);
-                    fileData = await tempFile.read({ format: formats.binary });
-                }
+                    // Method 1: Try using the entry token directly with fetch
+                    const arrayBuffer = await tempFile.read({ format: formats.binary });
+                    console.log("Read successful, size:", arrayBuffer?.byteLength);
 
-                console.log("File data type:", typeof fileData, "Length:", fileData?.byteLength || fileData?.length);
+                    // Ensure it's a proper ArrayBuffer
+                    const finalBuffer = arrayBuffer instanceof ArrayBuffer ? arrayBuffer :
+                                       (arrayBuffer?.buffer instanceof ArrayBuffer ? arrayBuffer.buffer : null);
+
+                    if (!finalBuffer) {
+                        throw new Error("Could not get ArrayBuffer from file");
+                    }
+
+                    fileBlob = new Blob([finalBuffer], { type: 'image/png' });
+                    console.log("Created blob, size:", fileBlob.size);
+                } catch (readError) {
+                    console.error("File read error:", readError);
+                    throw new Error("Failed to read exported file: " + readError.message);
+                }
 
                 showStatus('send-status', 'info', '⏳ Uploading to ComfyUI...');
 
@@ -309,23 +326,7 @@
                 const url = getComfyUIUrl();
                 const formData = new FormData();
 
-                // Create blob from file data with proper filename
-                const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
-
-                // Ensure we have a proper ArrayBuffer
-                let arrayBuffer;
-                if (fileData instanceof ArrayBuffer) {
-                    arrayBuffer = fileData;
-                } else if (fileData.buffer instanceof ArrayBuffer) {
-                    arrayBuffer = fileData.buffer;
-                } else {
-                    throw new Error("Failed to read file as binary data");
-                }
-
-                const blob = new Blob([arrayBuffer], { type: 'image/png' });
-                console.log("Blob created:", blob.size, "bytes");
-
-                formData.append('image', blob, filename);
+                formData.append('image', fileBlob, filename);
                 formData.append('overwrite', 'true');
 
                 const response = await fetch(`${url}/upload/image`, {
