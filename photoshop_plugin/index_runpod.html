@@ -279,13 +279,12 @@
 
                 const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
 
-                // Get plugin data folder
-                const dataFolder = await localFileSystem.getDataFolder();
-                const exportPath = `${dataFolder.nativePath}/${filename}`;
+                // Use system temp path instead of UXP paths (batchPlay doesn't support UXP tokens)
+                const exportPath = `/tmp/${filename}`;
 
                 console.log("Exporting to:", exportPath);
 
-                // Export using batchPlay - let it create the file
+                // Export using batchPlay with system path
                 try {
                     await require("photoshop").action.batchPlay([{
                         _obj: "exportDocument",
@@ -302,41 +301,24 @@
 
                 showStatus('send-status', 'info', '⏳ Reading file...');
 
-                // Wait for file to be fully written by batchPlay
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                // Wait for file to be fully written
+                await new Promise(resolve => setTimeout(resolve, 500));
 
-                // Get a completely fresh folder reference after batchPlay
-                console.log("Getting fresh folder reference...");
-                let freshDataFolder;
+                // Get UXP file entry for the temp file
+                console.log("Getting file entry from system path...");
+                let exportFile;
                 try {
-                    freshDataFolder = await localFileSystem.getDataFolder();
-                    console.log("Got fresh folder reference");
-                } catch (folderError) {
-                    console.error("Error getting folder:", folderError);
-                    throw new Error("Could not get data folder: " + folderError.message);
+                    const fileUrl = `file://${exportPath}`;
+                    exportFile = await localFileSystem.createEntryWithUrl(fileUrl);
+                    console.log("Got file entry");
+                } catch (entryError) {
+                    console.error("Error getting file entry:", entryError);
+                    throw new Error("Could not access exported file: " + entryError.message);
                 }
 
-                console.log("Getting file entries...");
-                let entries;
-                try {
-                    entries = await freshDataFolder.getEntries();
-                    console.log("Got entries, count:", entries.length);
-                } catch (entriesError) {
-                    console.error("Error getting entries:", entriesError);
-                    throw new Error("Could not list folder contents: " + entriesError.message);
-                }
-
-                const exportFile = entries.find(entry => entry.name === filename);
-
-                if (!exportFile) {
-                    console.error("Available files:", entries.map(e => e.name).join(", "));
-                    throw new Error(`Could not find exported file: ${filename}`);
-                }
-
-                console.log("Found file:", exportFile.name);
+                console.log("Reading file...");
                 let fileBlob;
                 try {
-                    console.log("Reading file...");
                     // Read as Uint8Array first, then convert to Blob
                     const uint8Array = await exportFile.read({ format: formats.binary });
                     console.log("Read file data, length:", uint8Array.byteLength || uint8Array.length);
@@ -346,12 +328,11 @@
                     console.log("Created blob, size:", fileBlob.size);
                 } catch (readError) {
                     console.error("Read error:", readError);
-                    // If direct read fails, try to clean up and throw error
-                    try { await exportFile.delete(); } catch(e) {}
                     throw new Error("Could not read exported file: " + readError.message);
                 }
 
-                // Clean up export file
+                // Clean up temp file
+                console.log("Cleaning up temp file...");
                 try {
                     await exportFile.delete();
                     console.log("Cleaned up export file");
