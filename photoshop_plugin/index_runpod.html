@@ -374,7 +374,7 @@
 
                     const pixelData = await core.executeAsModal(async () => {
                         // Get pixel data (RGBA)
-                        const pixels = await imaging.getPixels({
+                        const result = await imaging.getPixels({
                             documentID: docId,
                             sourceBounds: {
                                 left: bounds.left,
@@ -387,6 +387,9 @@
                                 height: height
                             }
                         });
+
+                        // Extract the actual pixel data (imageData property contains the Uint8Array)
+                        const pixels = result.imageData || result.pixelData || result;
 
                         return { pixels, width, height };
                     }, { commandName: "Get Pixels" });
