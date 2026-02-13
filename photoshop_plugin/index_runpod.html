@@ -279,9 +279,9 @@
 
                 const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
 
-                // Export using batchPlay - use desktop folder for better permissions
-                const desktopFolder = await localFileSystem.getFolder();
-                const exportFile = await desktopFolder.createFile(filename, { overwrite: true });
+                // Export using batchPlay - use plugin data folder (no permission needed)
+                const dataFolder = await localFileSystem.getDataFolder();
+                const exportFile = await dataFolder.createFile(filename, { overwrite: true });
 
                 console.log("Exporting to:", exportFile.nativePath);
 
@@ -295,8 +295,8 @@
 
                 showStatus('send-status', 'info', '⏳ Reading file...');
 
-                // Wait a bit longer for file to be fully written
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // Wait for file to be fully written by batchPlay
+                await new Promise(resolve => setTimeout(resolve, 1000));
 
                 // Read the file using the file entry
                 console.log("Reading file...");
