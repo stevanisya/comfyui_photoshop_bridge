@@ -289,21 +289,39 @@
                     copy: true
                 }], {});
 
-                showStatus('send-status', 'info', '⏳ Preparing file for upload...');
+                showStatus('send-status', 'info', '⏳ Reading exported file...');
 
-                // Use File API to create a file directly from the temp file
                 const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
 
-                // Get the file as a native path and use fetch
-                const filePath = tempFile.nativePath;
-                console.log("File path:", filePath);
+                // Workaround: Get a fresh file entry that can be read
+                // The tempFile from createFile can't be read directly after batchPlay
+                const tempFolder = await localFileSystem.getTemporaryFolder();
+                const files = await tempFolder.getEntries();
 
-                // Try reading the file entry directly
+                // Find our file by looking for the newest PNG
+                let readableFile = null;
+                let newestTime = 0;
+                for (const entry of files) {
+                    if (entry.isFile && entry.name.startsWith('comfyui_') && entry.name.endsWith('.png')) {
+                        const stats = await entry.getMetadata();
+                        if (stats.modificationTime > newestTime) {
+                            newestTime = stats.modificationTime;
+                            readableFile = entry;
+                        }
+                    }
+                }
+
+                if (!readableFile) {
+                    throw new Error("Could not find exported file");
+                }
+
+                console.log("Found file:", readableFile.name);
+
+                // Now try to read the file
                 let fileBlob;
                 try {
-                    // Method 1: Try using the entry token directly with fetch
-                    const arrayBuffer = await tempFile.read({ format: formats.binary });
-                    console.log("Read successful, size:", arrayBuffer?.byteLength);
+                    const arrayBuffer = await readableFile.read({ format: formats.binary });
+                    console.log("Read successful, size:", arrayBuffer?.byteLength || arrayBuffer?.length);
 
                     // Ensure it's a proper ArrayBuffer
                     const finalBuffer = arrayBuffer instanceof ArrayBuffer ? arrayBuffer :
@@ -318,6 +336,13 @@
                 } catch (readError) {
                     console.error("File read error:", readError);
                     throw new Error("Failed to read exported file: " + readError.message);
+                }
+
+                // Clean up temp file
+                try {
+                    await readableFile.delete();
+                } catch (e) {
+                    console.warn("Could not delete temp file:", e);
                 }
 
                 showStatus('send-status', 'info', '⏳ Uploading to ComfyUI...');
@@ -340,8 +365,6 @@
 
                 const result = await response.json();
                 showStatus('send-status', 'success', `✓ Uploaded! Filename: ${result.name || layerName}`);
-
-                await tempFile.delete();
 
             } catch (error) {
                 console.error("Send error:", error);

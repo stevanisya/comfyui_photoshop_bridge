@@ -13,21 +13,27 @@ import torch
 
 class LoadImageFromPhotoshop:
     """
-    Automatically loads the newest image uploaded from Photoshop
-    No manual selection needed - always uses the most recent upload
+    Loads the newest image uploaded from Photoshop
+    Click the refresh button to load the latest uploaded image
     """
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {},
+            "required": {
+                "refresh": ("BOOLEAN", {
+                    "default": False,
+                    "label_on": "✓ loaded",
+                    "label_off": "click to load"
+                }),
+            },
         }
 
     RETURN_TYPES = ("IMAGE", "MASK")
     FUNCTION = "load_image"
     CATEGORY = "UnaCustom"
 
-    def load_image(self):
+    def load_image(self, refresh=False):
         """Load the newest image from input folder"""
         input_dir = folder_paths.get_input_directory()
 
@@ -82,11 +88,11 @@ class LoadImageFromPhotoshop:
         return (image_tensor, mask)
 
     @classmethod
-    def IS_CHANGED(cls):
-        """Always check for newest file - auto-refreshes when new images are uploaded"""
+    def IS_CHANGED(cls, refresh=False):
+        """Check when refresh button is toggled or new files are added"""
         input_dir = folder_paths.get_input_directory()
 
-        # Return the latest modification time to trigger refresh when new files are added
+        # Return the latest modification time + refresh state to trigger updates
         if os.path.isdir(input_dir):
             try:
                 files = [f for f in os.listdir(input_dir)
@@ -94,11 +100,11 @@ class LoadImageFromPhotoshop:
                 if files:
                     # Get the newest file's modification time
                     latest = max([os.path.getmtime(os.path.join(input_dir, f)) for f in files])
-                    return latest
+                    return (latest, refresh)
             except:
                 pass
 
-        return time.time()
+        return (time.time(), refresh)
 
 
 class SaveImageToPhotoshop:
