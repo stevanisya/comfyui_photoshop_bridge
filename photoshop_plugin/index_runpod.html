@@ -289,11 +289,18 @@
 
                     // Get document info before executeAsModal
                     const docId = doc.id;
-                    const bounds = doc.bounds;
-                    const width = bounds.right - bounds.left;
-                    const height = bounds.bottom - bounds.top;
+                    const width = doc.width;
+                    const height = doc.height;
 
                     console.log(`Document size: ${width}x${height}`);
+
+                    // Create bounds from document dimensions
+                    const bounds = {
+                        left: 0,
+                        top: 0,
+                        right: width,
+                        bottom: height
+                    };
 
                     const pixelData = await core.executeAsModal(async () => {
                         // Get pixel data (RGBA)
