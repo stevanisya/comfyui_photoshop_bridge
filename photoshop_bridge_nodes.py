@@ -17,7 +17,7 @@ class LoadImageFromPhotoshop:
     This node provides a convenient way to access recent uploads
 
     To refresh the image list after uploading from Photoshop:
-    - Change the 'refresh' number (increment it)
+    - Toggle the 'Refresh List' checkbox on/off
     - Or right-click the node and select 'Refresh'
     """
 
@@ -36,9 +36,11 @@ class LoadImageFromPhotoshop:
         return {
             "required": {
                 "image": (files if files else ["no_images_found.png"],),
-            },
-            "optional": {
-                "refresh": ("INT", {"default": 0, "min": 0, "max": 999999, "tooltip": "Change this number to refresh the image list"}),
+                "refresh_list": ("BOOLEAN", {
+                    "default": False,
+                    "label_on": "refreshed",
+                    "label_off": "click to refresh"
+                }),
             },
         }
 
@@ -46,7 +48,7 @@ class LoadImageFromPhotoshop:
     FUNCTION = "load_image"
     CATEGORY = "UnaCustom"
 
-    def load_image(self, image, refresh=0):
+    def load_image(self, image, refresh_list=False):
         """Load the selected image"""
         input_dir = folder_paths.get_input_directory()
         image_path = os.path.join(input_dir, image)
@@ -79,12 +81,12 @@ class LoadImageFromPhotoshop:
         return (image_tensor, mask)
 
     @classmethod
-    def IS_CHANGED(cls, image, refresh=0):
+    def IS_CHANGED(cls, image, refresh_list=False):
         """Force refresh - check for new files in input folder"""
         input_dir = folder_paths.get_input_directory()
 
-        # Return the latest modification time + refresh counter
-        # This will refresh when new images are added OR when refresh is changed
+        # Return the latest modification time + refresh toggle state
+        # This will refresh when new images are added OR when refresh_list is toggled
         if os.path.isdir(input_dir):
             try:
                 files = [f for f in os.listdir(input_dir)
@@ -92,11 +94,11 @@ class LoadImageFromPhotoshop:
                 if files:
                     # Get the newest file's modification time
                     latest = max([os.path.getmtime(os.path.join(input_dir, f)) for f in files])
-                    return (latest, refresh)
+                    return (latest, refresh_list)
             except:
                 pass
 
-        return (time.time(), refresh)
+        return (time.time(), refresh_list)
 
 
 class SaveImageToPhotoshop:
