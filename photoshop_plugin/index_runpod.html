@@ -277,50 +277,32 @@
 
                 showStatus('send-status', 'info', '⏳ Exporting image...');
 
-                // Export to temp file
-                const tempFolder = await localFileSystem.getTemporaryFolder();
-                const tempFile = await tempFolder.createFile(`comfyui_${Date.now()}.png`, { overwrite: true });
+                const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
+
+                // Try using plugin data folder instead of temp - might have better permissions
+                const dataFolder = await localFileSystem.getDataFolder();
+                const exportFile = await dataFolder.createFile(filename, { overwrite: true });
+
+                console.log("Exporting to:", exportFile.nativePath);
 
                 await require("photoshop").action.batchPlay([{
                     _obj: "exportDocument",
                     _target: [{ _ref: "document", _id: doc.id }],
-                    exportIn: { _path: tempFile.nativePath, _kind: "local" },
+                    exportIn: { _path: exportFile.nativePath, _kind: "local" },
                     exportAs: { _obj: "PNGFormat" },
                     copy: true
                 }], {});
 
                 showStatus('send-status', 'info', '⏳ Reading exported file...');
 
-                const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
+                // Small delay to ensure file is fully written
+                await new Promise(resolve => setTimeout(resolve, 100));
 
-                // Workaround: Get a fresh file entry that can be read
-                // The tempFile from createFile can't be read directly after batchPlay
-                // Reuse tempFolder from above - no need to get it again
-                const files = await tempFolder.getEntries();
-
-                // Find our file by looking for the newest PNG
-                let readableFile = null;
-                let newestTime = 0;
-                for (const entry of files) {
-                    if (entry.isFile && entry.name.startsWith('comfyui_') && entry.name.endsWith('.png')) {
-                        const stats = await entry.getMetadata();
-                        if (stats.modificationTime > newestTime) {
-                            newestTime = stats.modificationTime;
-                            readableFile = entry;
-                        }
-                    }
-                }
-
-                if (!readableFile) {
-                    throw new Error("Could not find exported file");
-                }
-
-                console.log("Found file:", readableFile.name);
-
-                // Now try to read the file
+                // Try to read the file we just created
                 let fileBlob;
                 try {
-                    const arrayBuffer = await readableFile.read({ format: formats.binary });
+                    console.log("Attempting to read file...");
+                    const arrayBuffer = await exportFile.read({ format: formats.binary });
                     console.log("Read successful, size:", arrayBuffer?.byteLength || arrayBuffer?.length);
 
                     // Ensure it's a proper ArrayBuffer
@@ -338,11 +320,12 @@
                     throw new Error("Failed to read exported file: " + readError.message);
                 }
 
-                // Clean up temp file
+                // Clean up after successful read
                 try {
-                    await readableFile.delete();
+                    await exportFile.delete();
+                    console.log("Cleaned up export file");
                 } catch (e) {
-                    console.warn("Could not delete temp file:", e);
+                    console.warn("Could not delete export file:", e);
                 }
 
                 showStatus('send-status', 'info', '⏳ Uploading to ComfyUI...');
