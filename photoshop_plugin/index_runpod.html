@@ -341,6 +341,21 @@
 
                 const doc = app.activeDocument;
                 const exportType = document.querySelector('input[name="export-type"]:checked').value;
+
+                console.log("=".repeat(60));
+                console.log("EXPORT STARTING");
+                console.log("Export mode:", exportType === "layer" ? "ACTIVE LAYER" : "FULL DOCUMENT");
+                console.log("Document name:", doc.name);
+                console.log("Document size:", doc.width, "x", doc.height);
+
+                if (exportType === "layer" && doc.activeLayers.length > 0) {
+                    console.log("Active layer:", doc.activeLayers[0].name);
+                    console.log("Active layer ID:", doc.activeLayers[0].id);
+                } else if (exportType === "layer") {
+                    console.log("⚠ Layer mode selected but no active layer - will export full document");
+                }
+                console.log("=".repeat(60));
+
                 const layerName = exportType === "layer" && doc.activeLayers.length > 0
                     ? doc.activeLayers[0].name
                     : doc.name;
@@ -349,64 +364,58 @@
 
                 const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
 
-                console.log("Using imaging API to get pixels...");
-
-                // Use imaging API to get pixels directly (no file system needed)
+                // Use batchPlay to export file to plugin data folder, then read and upload
                 let fileBlob;
                 try {
                     const core = require("photoshop").core;
-                    const imaging = require("photoshop").imaging;
+                    const action = require("photoshop").action;
+                    const { entrypoints } = require("uxp");
 
-                    // Get document info before executeAsModal
-                    const docId = doc.id;
-                    const width = doc.width;
-                    const height = doc.height;
+                    console.log("Exporting via batchPlay to session temp folder...");
 
-                    console.log(`Document size: ${width}x${height}`);
+                    // Get session temporary folder (different access rights than plugin data folder)
+                    const tempFolder = await localFileSystem.getTemporaryFolder();
+                    const tempFileName = `ps_export_${Date.now()}.png`;
+                    const tempFile = await tempFolder.createFile(tempFileName, { overwrite: true });
 
-                    // Create bounds from document dimensions
-                    const bounds = {
-                        left: 0,
-                        top: 0,
-                        right: width,
-                        bottom: height
-                    };
+                    console.log("Created temp file:", tempFile.nativePath);
 
-                    const pixelData = await core.executeAsModal(async () => {
-                        // Get pixel data (RGBA)
-                        const result = await imaging.getPixels({
-                            documentID: docId,
-                            sourceBounds: {
-                                left: bounds.left,
-                                top: bounds.top,
-                                right: bounds.right,
-                                bottom: bounds.bottom
-                            },
-                            targetSize: {
-                                width: width,
-                                height: height
-                            }
-                        });
+                    // Try using Save For Web instead of exportDocument (different API that might work)
+                    await core.executeAsModal(async () => {
+                        try {
+                            // Method 1: Try save for web
+                            const result = await action.batchPlay([{
+                                _obj: "exportDocument",
+                                using: { _path: tempFile.nativePath, _kind: "local" },
+                                as: { _enum: "PNGFormat", _value: "PNG24" },
+                                format: "PNG",
+                                settings: {
+                                    _obj: "PNGOptions",
+                                    interlaced: false,
+                                    transparency: true
+                                }
+                            }], {});
 
-                        // Extract the actual pixel data (imageData property contains the Uint8Array)
-                        const pixels = result.imageData || result.pixelData || result;
+                            console.log("Export result:", result);
+                        } catch (e) {
+                            console.error("Export failed:", e);
+                            throw e;
+                        }
+                    }, { commandName: "Export Document" });
 
-                        return { pixels, width, height };
-                    }, { commandName: "Get Pixels" });
+                    console.log("Export complete, reading file...");
 
-                    console.log("Got pixel data, converting to PNG...");
+                    // Read the exported file
+                    const arrayBuffer = await tempFile.read({ format: formats.binary });
+                    fileBlob = new Blob([arrayBuffer], { type: 'image/png' });
 
-                    // Convert to Uint8Array if needed
-                    const pixelArray = pixelData.pixels instanceof Uint8Array
-                        ? pixelData.pixels
-                        : new Uint8Array(pixelData.pixels);
+                    console.log("Read file, size:", fileBlob.size);
 
-                    console.log("Pixel array length:", pixelArray.length);
+                    // Clean up temp file
+                    await tempFile.delete();
+                    console.log("Deleted temp file");
 
-                    // UXP canvas doesn't support ImageData operations, so we manually encode PNG
-                    fileBlob = createPNG(pixelArray, pixelData.width, pixelData.height);
-
-                    console.log("Created PNG blob, size:", fileBlob.size);
+                    console.log("PNG export successful!");
                 } catch (imagingError) {
                     console.error("Imaging error:", imagingError);
                     throw new Error("Could not get image data: " + imagingError.message);

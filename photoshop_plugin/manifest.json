@@ -2,7 +2,7 @@
   "id": "com.comfyui.photoshop.bridge",
   "name": "ComfyUI Bridge",
   "version": "1.0.0",
-  "main": "index_runpod.html",
+  "main": "index_helper.html",
   "manifestVersion": 4,
   "host": {
     "app": "PS",
