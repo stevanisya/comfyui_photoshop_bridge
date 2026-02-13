@@ -279,16 +279,17 @@
 
                 const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
 
-                // Export using batchPlay - use plugin data folder (no permission needed)
+                // Get plugin data folder
                 const dataFolder = await localFileSystem.getDataFolder();
-                const exportFile = await dataFolder.createFile(filename, { overwrite: true });
+                const exportPath = `${dataFolder.nativePath}/${filename}`;
 
-                console.log("Exporting to:", exportFile.nativePath);
+                console.log("Exporting to:", exportPath);
 
+                // Export using batchPlay - let it create the file
                 await require("photoshop").action.batchPlay([{
                     _obj: "exportDocument",
                     _target: [{ _ref: "document", _id: doc.id }],
-                    exportIn: { _path: exportFile.nativePath, _kind: "local" },
+                    exportIn: { _path: exportPath, _kind: "local" },
                     exportAs: { _obj: "PNGFormat" },
                     copy: true
                 }], {});
@@ -296,10 +297,19 @@
                 showStatus('send-status', 'info', '⏳ Reading file...');
 
                 // Wait for file to be fully written by batchPlay
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, 1500));
 
-                // Read the file using the file entry
-                console.log("Reading file...");
+                // Get a fresh file entry after batchPlay created it
+                console.log("Getting fresh file entry...");
+                const entries = await dataFolder.getEntries();
+                const exportFile = entries.find(entry => entry.name === filename);
+
+                if (!exportFile) {
+                    console.error("Available files:", entries.map(e => e.name).join(", "));
+                    throw new Error(`Could not find exported file: ${filename}`);
+                }
+
+                console.log("Found file, reading...");
                 let fileBlob;
                 try {
                     // Read as Uint8Array first, then convert to Blob
