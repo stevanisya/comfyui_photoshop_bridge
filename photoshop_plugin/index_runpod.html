@@ -299,9 +299,27 @@
                 // Wait for file to be fully written by batchPlay
                 await new Promise(resolve => setTimeout(resolve, 1500));
 
-                // Get a fresh file entry after batchPlay created it
-                console.log("Getting fresh file entry...");
-                const entries = await dataFolder.getEntries();
+                // Get a completely fresh folder reference after batchPlay
+                console.log("Getting fresh folder reference...");
+                let freshDataFolder;
+                try {
+                    freshDataFolder = await localFileSystem.getDataFolder();
+                    console.log("Got fresh folder reference");
+                } catch (folderError) {
+                    console.error("Error getting folder:", folderError);
+                    throw new Error("Could not get data folder: " + folderError.message);
+                }
+
+                console.log("Getting file entries...");
+                let entries;
+                try {
+                    entries = await freshDataFolder.getEntries();
+                    console.log("Got entries, count:", entries.length);
+                } catch (entriesError) {
+                    console.error("Error getting entries:", entriesError);
+                    throw new Error("Could not list folder contents: " + entriesError.message);
+                }
+
                 const exportFile = entries.find(entry => entry.name === filename);
 
                 if (!exportFile) {
@@ -309,9 +327,10 @@
                     throw new Error(`Could not find exported file: ${filename}`);
                 }
 
-                console.log("Found file, reading...");
+                console.log("Found file:", exportFile.name);
                 let fileBlob;
                 try {
+                    console.log("Reading file...");
                     // Read as Uint8Array first, then convert to Blob
                     const uint8Array = await exportFile.read({ format: formats.binary });
                     console.log("Read file data, length:", uint8Array.byteLength || uint8Array.length);
