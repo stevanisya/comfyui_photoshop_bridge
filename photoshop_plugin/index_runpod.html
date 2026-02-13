@@ -287,17 +287,18 @@
                     const core = require("photoshop").core;
                     const imaging = require("photoshop").imaging;
 
+                    // Get document info before executeAsModal
+                    const docId = doc.id;
+                    const bounds = doc.bounds;
+                    const width = bounds.right - bounds.left;
+                    const height = bounds.bottom - bounds.top;
+
+                    console.log(`Document size: ${width}x${height}`);
+
                     const pixelData = await core.executeAsModal(async () => {
-                        // Get document bounds
-                        const bounds = doc.bounds;
-                        const width = bounds.right - bounds.left;
-                        const height = bounds.bottom - bounds.top;
-
-                        console.log(`Document size: ${width}x${height}`);
-
                         // Get pixel data (RGBA)
                         const pixels = await imaging.getPixels({
-                            documentID: doc.id,
+                            documentID: docId,
                             sourceBounds: {
                                 left: bounds.left,
                                 top: bounds.top,
