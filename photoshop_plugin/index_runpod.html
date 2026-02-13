@@ -286,13 +286,19 @@
                 console.log("Exporting to:", exportPath);
 
                 // Export using batchPlay - let it create the file
-                await require("photoshop").action.batchPlay([{
-                    _obj: "exportDocument",
-                    _target: [{ _ref: "document", _id: doc.id }],
-                    exportIn: { _path: exportPath, _kind: "local" },
-                    exportAs: { _obj: "PNGFormat" },
-                    copy: true
-                }], {});
+                try {
+                    await require("photoshop").action.batchPlay([{
+                        _obj: "exportDocument",
+                        _target: [{ _ref: "document", _id: doc.id }],
+                        exportIn: { _path: exportPath, _kind: "local" },
+                        exportAs: { _obj: "PNGFormat" },
+                        copy: true
+                    }], {});
+                    console.log("Export completed successfully");
+                } catch (exportError) {
+                    console.error("Export error:", exportError);
+                    throw new Error("Export failed: " + exportError.message);
+                }
 
                 showStatus('send-status', 'info', '⏳ Reading file...');
 
