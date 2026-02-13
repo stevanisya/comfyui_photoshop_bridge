@@ -284,15 +284,18 @@
 
                 console.log("Exporting to:", exportPath);
 
-                // Export using batchPlay with system path
+                // Export using batchPlay with system path (requires modal scope)
                 try {
-                    await require("photoshop").action.batchPlay([{
-                        _obj: "exportDocument",
-                        _target: [{ _ref: "document", _id: doc.id }],
-                        exportIn: { _path: exportPath, _kind: "local" },
-                        exportAs: { _obj: "PNGFormat" },
-                        copy: true
-                    }], {});
+                    const core = require("photoshop").core;
+                    await core.executeAsModal(async () => {
+                        await require("photoshop").action.batchPlay([{
+                            _obj: "exportDocument",
+                            _target: [{ _ref: "document", _id: doc.id }],
+                            exportIn: { _path: exportPath, _kind: "local" },
+                            exportAs: { _obj: "PNGFormat" },
+                            copy: true
+                        }], {});
+                    }, { commandName: "Export Document" });
                     console.log("Export completed successfully");
                 } catch (exportError) {
                     console.error("Export error:", exportError);
