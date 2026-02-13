@@ -182,6 +182,76 @@
 
         console.log("ComfyUI Bridge loading...");
 
+        // PNG encoder function (UXP canvas doesn't support ImageData operations)
+        function createPNG(pixels, width, height) {
+            // CRC32 for PNG chunks
+            const makeCRC = () => {
+                const table = new Uint32Array(256);
+                for (let i = 0; i < 256; i++) {
+                    let c = i;
+                    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+                    table[i] = c;
+                }
+                return (data) => {
+                    let crc = 0xFFFFFFFF;
+                    for (let i = 0; i < data.length; i++) crc = table[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+                    return (crc ^ 0xFFFFFFFF) >>> 0;
+                };
+            };
+            const crc32 = makeCRC();
+
+            // Write PNG chunk
+            const writeChunk = (type, data) => {
+                const chunk = new Uint8Array(12 + data.length);
+                const view = new DataView(chunk.buffer);
+                view.setUint32(0, data.length, false);
+                for (let i = 0; i < 4; i++) chunk[4 + i] = type.charCodeAt(i);
+                chunk.set(data, 8);
+                view.setUint32(8 + data.length, crc32(chunk.slice(4, 8 + data.length)), false);
+                return chunk;
+            };
+
+            // PNG signature
+            const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+
+            // IHDR
+            const ihdr = new Uint8Array(13);
+            new DataView(ihdr.buffer).setUint32(0, width, false);
+            new DataView(ihdr.buffer).setUint32(4, height, false);
+            ihdr[8] = 8; ihdr[9] = 6; // 8-bit RGBA
+
+            // IDAT (uncompressed zlib)
+            const rowBytes = width * 4;
+            const idat = new Uint8Array(2 + height * (5 + rowBytes + 1) + 4);
+            let pos = 0;
+            idat[pos++] = 0x78; idat[pos++] = 0x01; // zlib header
+
+            for (let y = 0; y < height; y++) {
+                const blockSize = rowBytes + 1;
+                idat[pos++] = (y === height - 1) ? 0x01 : 0x00;
+                idat[pos++] = blockSize & 0xFF; idat[pos++] = (blockSize >> 8) & 0xFF;
+                idat[pos++] = (~blockSize) & 0xFF; idat[pos++] = ((~blockSize) >> 8) & 0xFF;
+                idat[pos++] = 0; // no filter
+                idat.set(pixels.slice(y * rowBytes, (y + 1) * rowBytes), pos);
+                pos += rowBytes;
+            }
+
+            // Adler32
+            let a = 1, b = 0;
+            for (let i = 2; i < pos; i++) { a = (a + idat[i]) % 65521; b = (b + a) % 65521; }
+            new DataView(idat.buffer).setUint32(pos, (b << 16) | a, false);
+
+            // Combine
+            const png = new Uint8Array(sig.length + (12 + 13) + (12 + idat.length) + 12);
+            let p = 0;
+            png.set(sig, p); p += sig.length;
+            png.set(writeChunk('IHDR', ihdr), p); p += 12 + 13;
+            png.set(writeChunk('IDAT', idat), p); p += 12 + idat.length;
+            png.set(writeChunk('IEND', new Uint8Array(0)), p);
+
+            return new Blob([png], { type: 'image/png' });
+        }
+
         // Initialize
         document.addEventListener("DOMContentLoaded", () => {
             console.log("DOM ready - setting up plugin");
@@ -323,31 +393,8 @@
 
                     console.log("Got pixel data, converting to PNG...");
 
-                    // UXP has very limited canvas support, so we use getImageData to get an empty ImageData
-                    const canvas = document.createElement('canvas');
-                    canvas.width = pixelData.width;
-                    canvas.height = pixelData.height;
-                    const ctx = canvas.getContext('2d');
-
-                    // Get empty ImageData from canvas (this should work)
-                    const imageData = ctx.getImageData(0, 0, pixelData.width, pixelData.height);
-
-                    // Copy our pixel data into it
-                    imageData.data.set(pixelData.pixels);
-
-                    // Put it back on the canvas
-                    ctx.putImageData(imageData, 0, 0);
-
-                    // Convert canvas to blob
-                    fileBlob = await new Promise((resolve, reject) => {
-                        canvas.toBlob((blob) => {
-                            if (blob) {
-                                resolve(blob);
-                            } else {
-                                reject(new Error("Failed to create blob from canvas"));
-                            }
-                        }, 'image/png');
-                    });
+                    // UXP canvas doesn't support ImageData operations, so we manually encode PNG
+                    fileBlob = createPNG(pixelData.pixels, pixelData.width, pixelData.height);
 
                     console.log("Created PNG blob, size:", fileBlob.size);
                 } catch (imagingError) {
