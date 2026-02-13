@@ -275,48 +275,54 @@
                     ? doc.activeLayers[0].name
                     : doc.name;
 
-                showStatus('send-status', 'info', '⏳ Getting image data...');
+                showStatus('send-status', 'info', '⏳ Exporting image...');
 
                 const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
 
-                // Use Photoshop imaging API to get pixels directly - no file I/O needed!
-                // Must be called inside executeAsModal for security
-                const core = require("photoshop").core;
-                const imaging = require("photoshop").imaging;
+                // Export using batchPlay - use user's Documents folder for better compatibility
+                const documentsFolder = await localFileSystem.getFolder({initialLocation: {userDocuments: true}});
+                const exportFile = await documentsFolder.createFile(filename, { overwrite: true });
 
-                console.log("Getting pixel data...");
-                const pixmap = await core.executeAsModal(async () => {
-                    return await imaging.getPixels({
-                        sourceBounds: {
-                            left: 0,
-                            top: 0,
-                            right: doc.width,
-                            bottom: doc.height
-                        }
-                    });
-                }, {
-                    commandName: "Get Image Data for ComfyUI"
-                });
+                console.log("Exporting to:", exportFile.nativePath);
 
-                console.log("Got pixmap, size:", pixmap.imageData.width, "x", pixmap.imageData.height);
+                await require("photoshop").action.batchPlay([{
+                    _obj: "exportDocument",
+                    _target: [{ _ref: "document", _id: doc.id }],
+                    exportIn: { _path: exportFile.nativePath, _kind: "local" },
+                    exportAs: { _obj: "PNGFormat" },
+                    copy: true
+                }], {});
 
-                showStatus('send-status', 'info', '⏳ Converting to PNG...');
+                showStatus('send-status', 'info', '⏳ Reading file...');
 
-                // Create a canvas to convert to PNG
-                const canvas = document.createElement('canvas');
-                canvas.width = pixmap.imageData.width;
-                canvas.height = pixmap.imageData.height;
-                const ctx = canvas.getContext('2d');
+                // Wait a bit longer for file to be fully written
+                await new Promise(resolve => setTimeout(resolve, 500));
 
-                // Put the image data on the canvas
-                ctx.putImageData(pixmap.imageData, 0, 0);
+                // Read the file using the file entry
+                console.log("Reading file...");
+                let fileBlob;
+                try {
+                    // Read as Uint8Array first, then convert to Blob
+                    const uint8Array = await exportFile.read({ format: formats.binary });
+                    console.log("Read file data, length:", uint8Array.byteLength || uint8Array.length);
 
-                // Convert canvas to blob
-                const fileBlob = await new Promise((resolve) => {
-                    canvas.toBlob(resolve, 'image/png');
-                });
+                    // Convert to Blob
+                    fileBlob = new Blob([uint8Array], { type: 'image/png' });
+                    console.log("Created blob, size:", fileBlob.size);
+                } catch (readError) {
+                    console.error("Read error:", readError);
+                    // If direct read fails, try to clean up and throw error
+                    try { await exportFile.delete(); } catch(e) {}
+                    throw new Error("Could not read exported file: " + readError.message);
+                }
 
-                console.log("Created PNG blob, size:", fileBlob.size, "bytes");
+                // Clean up export file
+                try {
+                    await exportFile.delete();
+                    console.log("Cleaned up export file");
+                } catch (e) {
+                    console.warn("Could not delete export file:", e);
+                }
 
                 showStatus('send-status', 'info', '⏳ Uploading to ComfyUI...');
 
