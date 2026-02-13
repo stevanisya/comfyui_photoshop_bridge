@@ -275,58 +275,42 @@
                     ? doc.activeLayers[0].name
                     : doc.name;
 
-                showStatus('send-status', 'info', '⏳ Exporting image...');
+                showStatus('send-status', 'info', '⏳ Getting image data...');
 
                 const filename = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
 
-                // Try using plugin data folder instead of temp - might have better permissions
-                const dataFolder = await localFileSystem.getDataFolder();
-                const exportFile = await dataFolder.createFile(filename, { overwrite: true });
+                // Use Photoshop imaging API to get pixels directly - no file I/O needed!
+                const imaging = require("photoshop").imaging;
 
-                console.log("Exporting to:", exportFile.nativePath);
-
-                await require("photoshop").action.batchPlay([{
-                    _obj: "exportDocument",
-                    _target: [{ _ref: "document", _id: doc.id }],
-                    exportIn: { _path: exportFile.nativePath, _kind: "local" },
-                    exportAs: { _obj: "PNGFormat" },
-                    copy: true
-                }], {});
-
-                showStatus('send-status', 'info', '⏳ Reading exported file...');
-
-                // Small delay to ensure file is fully written
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                // Try to read the file we just created
-                let fileBlob;
-                try {
-                    console.log("Attempting to read file...");
-                    const arrayBuffer = await exportFile.read({ format: formats.binary });
-                    console.log("Read successful, size:", arrayBuffer?.byteLength || arrayBuffer?.length);
-
-                    // Ensure it's a proper ArrayBuffer
-                    const finalBuffer = arrayBuffer instanceof ArrayBuffer ? arrayBuffer :
-                                       (arrayBuffer?.buffer instanceof ArrayBuffer ? arrayBuffer.buffer : null);
-
-                    if (!finalBuffer) {
-                        throw new Error("Could not get ArrayBuffer from file");
+                console.log("Getting pixel data...");
+                const pixmap = await imaging.getPixels({
+                    sourceBounds: {
+                        left: 0,
+                        top: 0,
+                        right: doc.width,
+                        bottom: doc.height
                     }
+                });
 
-                    fileBlob = new Blob([finalBuffer], { type: 'image/png' });
-                    console.log("Created blob, size:", fileBlob.size);
-                } catch (readError) {
-                    console.error("File read error:", readError);
-                    throw new Error("Failed to read exported file: " + readError.message);
-                }
+                console.log("Got pixmap, size:", pixmap.imageData.width, "x", pixmap.imageData.height);
 
-                // Clean up after successful read
-                try {
-                    await exportFile.delete();
-                    console.log("Cleaned up export file");
-                } catch (e) {
-                    console.warn("Could not delete export file:", e);
-                }
+                showStatus('send-status', 'info', '⏳ Converting to PNG...');
+
+                // Create a canvas to convert to PNG
+                const canvas = document.createElement('canvas');
+                canvas.width = pixmap.imageData.width;
+                canvas.height = pixmap.imageData.height;
+                const ctx = canvas.getContext('2d');
+
+                // Put the image data on the canvas
+                ctx.putImageData(pixmap.imageData, 0, 0);
+
+                // Convert canvas to blob
+                const fileBlob = await new Promise((resolve) => {
+                    canvas.toBlob(resolve, 'image/png');
+                });
+
+                console.log("Created PNG blob, size:", fileBlob.size, "bytes");
 
                 showStatus('send-status', 'info', '⏳ Uploading to ComfyUI...');
 
