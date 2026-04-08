@@ -5,7 +5,7 @@ Export images from Photoshop directly into ComfyUI running on RunPod — no clou
 ## How It Works
 
 ```
-Photoshop Plugin → saves PNG to ~/comfyui-inputs/
+Photoshop Plugin → saves PNG to exports/
                         ↓
               fswatch + rsync (SSH)
                         ↓
@@ -61,7 +61,7 @@ Restart ComfyUI. The **"Load from Photoshop"** node will appear under the **Phot
 
 Load the `photoshop_plugin/` folder in Photoshop via **Plugins → Development → Load Plugin**.
 
-1. Click **Set Output Folder** and select `~/comfyui-inputs/`
+1. Click **Set Output Folder** and select `this repo's `exports/` folder`
 2. Choose **Active Layer** or **Full Document**
 3. Click **Export to ComfyUI**
 
@@ -71,7 +71,7 @@ Load the `photoshop_plugin/` folder in Photoshop via **Plugins → Development �
 bash sync-to-pod.sh
 ```
 
-Files in `~/comfyui-inputs/` will auto-sync to `/workspace/ComfyUI/input/photoshop_bridge/` on your pod.
+Files in `this repo's `exports/` folder` will auto-sync to `/workspace/ComfyUI/input/photoshop_bridge/` on your pod.
 
 ## Usage
 
