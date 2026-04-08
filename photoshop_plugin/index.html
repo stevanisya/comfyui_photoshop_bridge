@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --surface: #2d2d2d;
+            --text: #e0e0e0;
+            --text-dim: #999;
+            --accent: #4a9eff;
+            --success: #4caf50;
+            --error: #f44336;
+            --radius: 6px;
+        }
+
+        body {
+            font-family: "Adobe Clean", sans-serif;
+            font-size: 12px;
+            color: var(--text);
+            background: var(--bg);
+            margin: 0;
+            padding: 12px;
+        }
+
+        h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 16px 0;
+        }
+
+        .section {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .section-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .folder-path {
+            font-size: 11px;
+            color: var(--text-dim);
+            word-break: break-all;
+            margin-bottom: 8px;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 4px;
+        }
+
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        button:hover { opacity: 0.85; }
+        button:disabled { opacity: 0.4; cursor: default; }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #444;
+            color: var(--text);
+        }
+
+        .status {
+            font-size: 11px;
+            padding: 8px;
+            border-radius: var(--radius);
+            margin-top: 12px;
+            display: none;
+        }
+
+        .status.info { display: block; background: #1a3a5c; color: #7ab8ff; }
+        .status.success { display: block; background: #1a3a1a; color: #7aff7a; }
+        .status.error { display: block; background: #3a1a1a; color: #ff7a7a; }
+    </style>
+</head>
+<body>
+    <h2>ComfyUI Bridge</h2>
+
+    <div class="section">
+        <div class="section-label">Output Folder</div>
+        <div id="folder-path" class="folder-path">Not set</div>
+        <button id="set-folder-btn" class="btn-secondary">Set Output Folder</button>
+    </div>
+
+    <div class="section">
+        <div class="section-label">Export Type</div>
+        <div class="radio-group">
+            <label>
+                <input type="radio" name="export-type" value="layer" checked>
+                Active Layer
+            </label>
+            <label>
+                <input type="radio" name="export-type" value="document">
+                Full Document
+            </label>
+        </div>
+    </div>
+
+    <button id="export-btn" class="btn-primary">Export to ComfyUI</button>
+
+    <div id="status" class="status"></div>
+
+    <script src="main.js"></script>
+</body>
+</html>
