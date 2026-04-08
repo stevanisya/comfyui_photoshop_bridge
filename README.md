@@ -1,14 +1,16 @@
 # ComfyUI-Photoshop Bridge
 
-> ⚠️ **Work in Progress** - This project is under active development. Some features may not work as expected yet. Currently testing and fixing export functionality.
+> ⚠️ **Work in Progress** - This project is under active development. Some features may not work as expected yet.
 
-A bridge to seamlessly transfer images between Adobe Photoshop and ComfyUI using a local helper server.
+A bridge to seamlessly transfer images between Adobe Photoshop and ComfyUI, powered by **[fal.ai](https://fal.ai)** cloud storage for reliable image transfer across local and remote setups.
 
 ## Features
 
 - **Photoshop → ComfyUI**: Export layers or full document directly to ComfyUI
-- **Works with RunPod**: Supports remote ComfyUI instances via helper server
-- **ComfyUI Nodes**: Custom nodes to load latest Photoshop exports automatically
+- **fal.ai Cloud Storage**: Upload images to fal.ai for fast, reliable transfer between Photoshop and ComfyUI — no matter where ComfyUI is running
+- **Works with RunPod**: Supports remote ComfyUI instances directly
+- **ComfyUI Nodes**: Custom nodes to load images from fal.ai URLs or the latest Photoshop exports
+- **Fal Upload Node**: Dedicated ComfyUI node to upload images to fal.ai directly from workflows
 - **ComfyUI → Photoshop**: Send generated images back to Photoshop as new layers *(coming soon)*
 
 ## Project Structure
@@ -16,84 +18,53 @@ A bridge to seamlessly transfer images between Adobe Photoshop and ComfyUI using
 ```
 comfyui_photoshop_bridge/
 ├── __init__.py                   # ComfyUI node loader
-├── photoshop_bridge_nodes.py     # Custom node implementations
-├── helper_server.py              # Local helper server (NEW)
+├── photoshop_bridge_nodes.py     # Custom node implementations (incl. fal.ai integration)
 ├── requirements.txt              # ComfyUI node dependencies
-├── requirements_helper.txt       # Helper server dependencies (NEW)
 ├── photoshop_plugin/             # Photoshop UXP plugin
 │   ├── manifest.json
-│   ├── index_helper.html         # Plugin UI (NEW)
-│   ├── index_runpod.html         # Old version (deprecated)
+│   ├── main.js                   # Plugin logic (settings, fal.ai upload)
+│   ├── index_helper.html         # Plugin UI
 │   └── README.md
 └── README.md
 ```
 
 ## How It Works
 
-The bridge uses a **helper server** to solve UXP plugin file system limitations:
+The plugin talks **directly to ComfyUI** (no helper server needed), and uses **fal.ai** for cloud-based image storage:
 
-1. **Photoshop Plugin** (your computer) exports image and sends to helper server
-2. **Helper Server** (your computer, localhost:8765) forwards to ComfyUI
-3. **ComfyUI** (RunPod or local) receives and stores the image
-4. **ComfyUI Nodes** automatically detect and load the latest uploaded image
+1. **Photoshop Plugin** exports image and uploads it directly to ComfyUI's `/upload/image` endpoint
+2. **ComfyUI** receives the image, then uploads it to **fal.ai** storage server-side
+3. **fal.ai** returns a CDN URL accessible from anywhere
+4. **ComfyUI Nodes** load images via fal.ai URL or from the input folder
 
-### Architecture for Photoshop (Local) + ComfyUI (RunPod)
+### Architecture
 
 ```
-┌─────────────────────────────────┐        ┌──────────────────────┐
-│      YOUR COMPUTER              │        │      RUNPOD SERVER   │
-│                                 │        │                      │
-│  ┌───────────────────────┐     │        │  ┌────────────────┐  │
-│  │   Photoshop Plugin    │     │        │  │    ComfyUI     │  │
-│  └──────────┬────────────┘     │        │  │   + Nodes      │  │
-│             │                   │        │  └───────▲────────┘  │
-│             ▼                   │        │          │           │
-│  ┌───────────────────────┐     │        │          │           │
-│  │   Helper Server       │     │  HTTPS │          │           │
-│  │  (localhost:8765)     │─────┼────────┼──────────┘           │
-│  └───────────────────────┘     │Internet│                      │
-│                                 │        │                      │
-└─────────────────────────────────┘        └──────────────────────┘
+┌───────────────────┐         ┌──────────────────────┐
+│   YOUR COMPUTER   │         │   RUNPOD / SERVER    │
+│                   │         │                      │
+│ ┌───────────────┐ │  HTTPS  │ ┌────────────────┐  │
+│ │  Photoshop    │─┼─────────┼→│   ComfyUI      │  │
+│ │  Plugin (UXP) │ │         │ │   + Nodes      │  │
+│ └───────────────┘ │         │ └──────┬─────────┘  │
+│                   │         │        │             │
+└───────────────────┘         │        ▼             │
+                              │ ┌────────────────┐  │
+                              │ │  fal.ai Upload │  │
+                              │ │  (server-side) │  │
+                              │ └──────┬─────────┘  │
+                              │        │             │
+                              └────────┼─────────────┘
+                                       ▼
+                              ┌────────────────┐
+                              │  fal.ai CDN    │
+                              │  (cloud URL)   │
+                              └────────────────┘
 ```
-
-**Important:** The helper server runs **on your local computer** (same machine as Photoshop), not on RunPod. It acts as a bridge to forward images from Photoshop to your remote ComfyUI instance.
-
-## Quick Start
-
-**macOS/Linux:**
-```bash
-cd comfyui_photoshop_bridge
-./start_helper.sh
-```
-
-**Windows:**
-```
-Double-click start_helper.bat
-```
-
-Then follow the [Installation](#installation) and [Usage](#usage) sections below.
 
 ## Installation
 
-### 1. Helper Server (Local Machine)
-
-The helper server runs on your local machine and bridges between Photoshop and ComfyUI:
-
-```bash
-# Clone the repository
-git clone https://github.com/stevanisya/comfyui_photoshop_bridge.git
-cd comfyui_photoshop_bridge
-
-# Install Python dependencies for helper server
-pip install -r requirements_helper.txt
-
-# Start the helper server
-python helper_server.py
-```
-
-The server will run on `http://localhost:8765`. Keep it running while using the bridge.
-
-### 2. ComfyUI Nodes (RunPod / Server)
+### 1. ComfyUI Nodes (RunPod / Server)
 
 SSH into your ComfyUI instance and install the custom nodes:
 
@@ -113,7 +84,7 @@ cd /workspace/ComfyUI
 python main.py
 ```
 
-### 3. Photoshop Plugin (Local Machine)
+### 2. Photoshop Plugin (Local Machine)
 
 1. Install **UXP Developer Tool**:
    - Open Adobe Creative Cloud app
@@ -138,38 +109,19 @@ python main.py
 
 ## Usage
 
-### 1. Start the Helper Server
-
-Before using the plugin, start the helper server on your local machine:
-
-```bash
-cd comfyui_photoshop_bridge
-python helper_server.py
-```
-
-You should see:
-```
-ComfyUI-Photoshop Bridge Helper Server
-Starting server on http://localhost:8765
-```
-
-**Keep this terminal window open** while using the bridge.
-
-### 2. Configure Connection
+### 1. Configure Connection
 
 In the Photoshop plugin panel:
 
-1. Click **"Test Helper Connection"** to verify helper server is running
-   - ✓ Should show "Helper server is running!"
-
-2. Enter your ComfyUI URL:
+1. Enter your ComfyUI URL:
    - **For RunPod**: `https://xxxxx-8188.proxy.runpod.net`
    - **For Local ComfyUI**: `http://localhost:8188`
 
-3. Click **"Test ComfyUI Connection"** to verify
-   - ✓ Should show "Connected to ComfyUI via helper!"
+2. Enter your **fal.ai API Key** (format: `key-xxxxxxxxxxxx`)
 
-### 3. Send Images from Photoshop to ComfyUI
+3. Click **"Test ComfyUI Connection"** to verify connectivity
+
+### 2. Send Images from Photoshop to ComfyUI
 
 1. Open an image in Photoshop
 2. Choose export type:
@@ -180,7 +132,7 @@ In the Photoshop plugin panel:
 5. Progress: 📁 File picker → ⏳ Exporting → ⏳ Uploading → ✓ Uploaded!
 6. The image is now in ComfyUI's input folder
 
-### 4. Load in ComfyUI
+### 3. Load in ComfyUI
 
 In your ComfyUI workflow:
 
@@ -189,39 +141,41 @@ In your ComfyUI workflow:
 3. The node automatically loads the newest image from the input folder
 4. Connect to your workflow as usual
 
-## Architecture
+## fal.ai Setup
 
-```
-Photoshop Plugin (UXP)
-    ↓ (File picker exports PNG)
-    ↓
-Helper Server (localhost:8765)
-    ↓ (Forwards via HTTP/HTTPS)
-    ↓
-ComfyUI (Local or RunPod)
-    ↓
-Custom Nodes load images
-```
+The bridge uses [fal.ai](https://fal.ai) cloud storage to host uploaded images so they're accessible from anywhere (local or remote ComfyUI).
+
+### Get a fal.ai API Key
+
+1. Sign up at [fal.ai](https://fal.ai)
+2. Go to your dashboard and generate an API key (format: `key-xxxxxxxxxxxx`)
+
+### Configure the API Key
+
+You can provide your fal.ai API key in multiple ways:
+
+- **Photoshop Plugin**: Enter it in the "FAL API Key" field in the plugin panel
+- **File**: Place a `fal_api_key.txt` file in the plugin data folder
+- **ComfyUI config**: Create a `config.ini` in the `comfyui_nodes/` directory:
+  ```ini
+  [FAL]
+  API_KEY = your-fal-api-key
+  ```
+- **Node input**: Pass it directly to the `FalImageUpload` node in your workflow
+
+### ComfyUI Nodes for fal.ai
+
+- **FalImageUpload**: Uploads images to fal.ai storage and returns the CDN URL. Accepts file paths, URLs, or image tensors as input.
+- **LoadImageFromURL**: Loads images from any URL, including fal.ai storage URLs.
 
 ## Configuration
 
-- **Helper Server**: Runs on `http://localhost:8765`
 - **ComfyUI URL**: Configurable in plugin (supports both local and RunPod URLs)
-- **Image Upload**: Uses ComfyUI's `/upload/image` endpoint
-- **Communication**: Helper server forwards via HTTP/HTTPS
+- **fal.ai Storage**: Upload endpoint at `https://rest.fal.run/storage/upload`
+- **Image Upload**: Uses ComfyUI's `/upload/image` endpoint, then fal.ai for cloud storage
 - **Image Format**: PNG with transparency support
 
 ## Troubleshooting
-
-### Helper server won't start
-- Make sure you installed dependencies: `pip install -r requirements_helper.txt`
-- Check if port 8765 is already in use: `lsof -i :8765` (macOS/Linux)
-- Try a different port by editing `helper_server.py` (change `port=8765`)
-
-### "Helper server not running" in plugin
-- Start the helper server: `python helper_server.py`
-- Make sure it shows "Starting server on http://localhost:8765"
-- Check firewall settings aren't blocking localhost connections
 
 ### "Connection failed" to ComfyUI
 - Verify ComfyUI is running and accessible
@@ -232,7 +186,7 @@ Custom Nodes load images
 ### Images not appearing in ComfyUI node
 - In the "Load Image from Photoshop" node, **toggle the refresh checkbox**
 - Check ComfyUI's input folder for uploaded images
-- Look at helper server terminal output for upload confirmation
+- Verify the fal.ai upload returned a valid URL
 
 ### File picker appears every time
 - This is expected behavior (workaround for UXP limitations)
@@ -249,9 +203,11 @@ Custom Nodes load images
 
 - **Local Machine**:
   - Adobe Photoshop 2021 or later
-  - Python 3.7+ (for helper server)
-  - Flask, flask-cors, requests (installed via requirements_helper.txt)
 
 - **ComfyUI Server**:
   - ComfyUI installation
   - Standard Python dependencies (Pillow, torch, numpy)
+
+- **fal.ai**:
+  - Free or paid account at [fal.ai](https://fal.ai)
+  - API key for cloud storage uploads
