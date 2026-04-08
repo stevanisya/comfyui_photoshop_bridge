@@ -3,15 +3,23 @@
   "name": "ComfyUI Bridge",
   "version": "1.0.0",
   "main": "index_helper.html",
-  "manifestVersion": 4,
-  "host": {
-    "app": "PS",
-    "minVersion": "23.0.0"
-  },
+  "manifestVersion": 5,
+  "host": [
+    {
+      "app": "PS",
+      "minVersion": "23.0.0"
+    }
+  ],
   "strings": {
     "panel-label": {
       "default": "ComfyUI Bridge"
     }
+  },
+  "requiredPermissions": {
+    "network": {
+      "domains": "all"
+    },
+    "localFileSystem": "request"
   },
   "entrypoints": [
     {

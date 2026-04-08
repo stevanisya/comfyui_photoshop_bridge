@@ -48,27 +48,13 @@
             margin-bottom: 8px;
         }
 
-        .button:hover {
-            background: #0d66d0;
-        }
+        .button:hover { background: #0d66d0; }
+        .button:disabled { background: #4d4d4d; color: #8d8d8d; cursor: not-allowed; }
+        .button.secondary { background: #4d4d4d; }
+        .button.secondary:hover { background: #5d5d5d; }
+        .button.success { background: #2e7d32; }
 
-        .button:disabled {
-            background: #4d4d4d;
-            color: #8d8d8d;
-            cursor: not-allowed;
-        }
-
-        .button.secondary {
-            background: #4d4d4d;
-        }
-
-        .button.secondary:hover {
-            background: #5d5d5d;
-        }
-
-        .input-group {
-            margin-bottom: 12px;
-        }
+        .input-group { margin-bottom: 12px; }
 
         .input-label {
             display: block;
@@ -88,10 +74,7 @@
             box-sizing: border-box;
         }
 
-        .input-field:focus {
-            outline: none;
-            border-color: #1473e6;
-        }
+        .input-field:focus { outline: none; border-color: #1473e6; }
 
         .status {
             margin-top: 8px;
@@ -101,35 +84,12 @@
             min-height: 20px;
         }
 
-        .status.success {
-            background: rgba(46, 204, 113, 0.2);
-            color: #2ecc71;
-            border: 1px solid rgba(46, 204, 113, 0.4);
-        }
+        .status.success { background: rgba(46,204,113,.2); color: #2ecc71; border: 1px solid rgba(46,204,113,.4); }
+        .status.error   { background: rgba(231,76,60,.2);  color: #e74c3c; border: 1px solid rgba(231,76,60,.4); }
+        .status.info    { background: rgba(52,152,219,.2); color: #3498db; border: 1px solid rgba(52,152,219,.4); }
+        .status.warning { background: rgba(241,196,15,.2); color: #f1c40f; border: 1px solid rgba(241,196,15,.4); }
 
-        .status.error {
-            background: rgba(231, 76, 60, 0.2);
-            color: #e74c3c;
-            border: 1px solid rgba(231, 76, 60, 0.4);
-        }
-
-        .status.info {
-            background: rgba(52, 152, 219, 0.2);
-            color: #3498db;
-            border: 1px solid rgba(52, 152, 219, 0.4);
-        }
-
-        .status.warning {
-            background: rgba(241, 196, 15, 0.2);
-            color: #f1c40f;
-            border: 1px solid rgba(241, 196, 15, 0.4);
-        }
-
-        .radio-group {
-            display: flex;
-            gap: 16px;
-            margin-bottom: 12px;
-        }
+        .radio-group { display: flex; gap: 16px; margin-bottom: 12px; }
 
         .radio-label {
             display: flex;
@@ -138,63 +98,63 @@
             font-size: 13px;
         }
 
-        .help-text {
-            font-size: 11px;
-            color: #8d8d8d;
-            margin-top: 4px;
-        }
+        .help-text { font-size: 11px; color: #8d8d8d; margin-top: 4px; }
 
-        .step-indicator {
-            background: #2d2d2d;
+        .url-result { display: none; margin-top: 12px; }
+
+        .url-box {
+            background: #1a1a1a;
             border: 1px solid #4d4d4d;
             border-radius: 4px;
             padding: 8px 12px;
-            margin-bottom: 12px;
-            font-size: 12px;
+            font-size: 11px;
+            color: #a0c4ff;
+            word-break: break-all;
+            margin-bottom: 8px;
+            font-family: monospace;
         }
+
+        .key-source-badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .key-source-badge.file    { background: rgba(46,204,113,.2); color: #2ecc71; border: 1px solid rgba(46,204,113,.3); }
+        .key-source-badge.storage { background: rgba(52,152,219,.2); color: #3498db; border: 1px solid rgba(52,152,219,.3); }
+        .key-source-badge.manual  { background: rgba(241,196,15,.2); color: #f1c40f; border: 1px solid rgba(241,196,15,.3); }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Helper Server Status -->
-        <div class="section">
-            <div class="section-title">🔧 Helper Server</div>
-            <button id="test-helper" class="button secondary">Test Helper Connection</button>
-            <div id="helper-status" class="status"></div>
-        </div>
 
-        <!-- Connection Settings -->
+        <!-- API Key Settings -->
         <div class="section">
-            <div class="section-title">⚙️ ComfyUI Connection</div>
-
+            <div class="section-title">
+                Settings
+                <span id="key-source-badge" class="key-source-badge" style="display:none"></span>
+            </div>
             <div class="input-group">
-                <label class="input-label">ComfyUI URL</label>
-                <input
-                    type="text"
-                    id="comfyui-url"
-                    class="input-field"
-                    placeholder="https://xxxxx-8188.proxy.runpod.net"
-                    value="http://localhost:8188"
-                >
-                <div class="help-text">
-                    Paste your RunPod URL or use http://localhost:8188 for local
+                <label class="input-label">FAL API Key</label>
+                <input type="password" id="fal-api-key" class="input-field" placeholder="key-xxxxxxxxxxxx">
+                <div class="help-text" id="key-help-text">
+                    Place <strong>fal_api_key.txt</strong> in the plugin data folder, or enter manually below.
                 </div>
             </div>
-
-            <button id="test-connection" class="button secondary">Test ComfyUI Connection</button>
-            <div id="test-status" class="status"></div>
+            <div class="input-group">
+                <label class="input-label">ComfyUI URL</label>
+                <input type="text" id="comfyui-url" class="input-field" placeholder="https://xxx-8188.proxy.runpod.net">
+            </div>
+            <button id="save-key-btn" class="button secondary">Save Settings to File</button>
+            <div id="save-key-status" class="status" style="display:none"></div>
         </div>
 
-        <!-- Send to ComfyUI -->
+        <!-- Upload -->
         <div class="section">
-            <div class="section-title">📤 Send to ComfyUI</div>
-
-            <div class="step-indicator">
-                <strong>How it works:</strong><br>
-                1. Click "Send to ComfyUI"<br>
-                2. Choose where to save temporary export<br>
-                3. Image automatically uploads to ComfyUI
-            </div>
+            <div class="section-title">Upload to Fal Storage</div>
 
             <div class="radio-group">
                 <label class="radio-label">
@@ -207,286 +167,19 @@
                 </label>
             </div>
 
-            <button id="send-to-comfyui" class="button">Send to ComfyUI</button>
-            <div id="send-status" class="status"></div>
+            <button id="upload-btn" class="button">Upload to Fal.ai</button>
+            <button id="test-btn" class="button secondary" style="font-size:11px;padding:6px;">Test network (debug)</button>
+            <div id="upload-status" class="status"></div>
+
+            <div class="url-result" id="url-result">
+                <div class="input-label">Paste this URL into the LoadImageFromURL node in ComfyUI:</div>
+                <div class="url-box" id="result-url"></div>
+                <button id="copy-btn" class="button secondary">Copy URL</button>
+            </div>
         </div>
+
     </div>
 
-    <script>
-        const { app } = require("photoshop");
-        const { storage } = require("uxp");
-        const { localFileSystem, formats } = storage;
-
-        console.log("ComfyUI Bridge (Helper Mode) loading...");
-
-        const HELPER_SERVER_URL = "http://localhost:8765";
-
-        // Initialize
-        document.addEventListener("DOMContentLoaded", () => {
-            console.log("DOM ready - setting up plugin");
-            setupEventListeners();
-            loadSettings();
-            showStatus('helper-status', 'info', 'Ready - Click test to verify helper server');
-        });
-
-        // Setup event listeners
-        function setupEventListeners() {
-            document.getElementById("test-helper").addEventListener("click", testHelperServer);
-            document.getElementById("test-connection").addEventListener("click", testComfyUI);
-            document.getElementById("send-to-comfyui").addEventListener("click", sendToComfyUI);
-            document.getElementById("comfyui-url").addEventListener("change", saveSettings);
-        }
-
-        // Load settings
-        function loadSettings() {
-            try {
-                const settings = localStorage.getItem("comfyui-bridge-settings");
-                if (settings) {
-                    const parsed = JSON.parse(settings);
-                    if (parsed.comfyuiUrl) {
-                        document.getElementById("comfyui-url").value = parsed.comfyuiUrl;
-                    }
-                }
-            } catch (e) {
-                console.error("Error loading settings:", e);
-            }
-        }
-
-        // Save settings
-        function saveSettings() {
-            try {
-                const settings = {
-                    comfyuiUrl: document.getElementById("comfyui-url").value
-                };
-                localStorage.setItem("comfyui-bridge-settings", JSON.stringify(settings));
-            } catch (e) {
-                console.error("Error saving settings:", e);
-            }
-        }
-
-        // Get URL
-        function getComfyUIUrl() {
-            let url = document.getElementById("comfyui-url").value.trim();
-            if (url.endsWith("/")) url = url.slice(0, -1);
-            return url;
-        }
-
-        // Test helper server
-        async function testHelperServer() {
-            const btn = document.getElementById("test-helper");
-
-            try {
-                btn.disabled = true;
-                showStatus('helper-status', 'info', '⏳ Testing helper server...');
-
-                const response = await fetch(`${HELPER_SERVER_URL}/health`, { method: "GET" });
-
-                if (response.ok) {
-                    showStatus('helper-status', 'success', '✓ Helper server is running!');
-                } else {
-                    throw new Error(`Server returned ${response.status}`);
-                }
-            } catch (error) {
-                console.error("Helper server error:", error);
-                showStatus('helper-status', 'error', '✗ Helper server not running. Start it with: python helper_server.py');
-            } finally {
-                btn.disabled = false;
-            }
-        }
-
-        // Test ComfyUI connection via helper
-        async function testComfyUI() {
-            const btn = document.getElementById("test-connection");
-
-            try {
-                btn.disabled = true;
-                showStatus('test-status', 'info', '⏳ Testing ComfyUI connection...');
-
-                const url = getComfyUIUrl();
-                const response = await fetch(`${HELPER_SERVER_URL}/test-comfyui?url=${encodeURIComponent(url)}`, {
-                    method: "GET"
-                });
-
-                if (response.ok) {
-                    showStatus('test-status', 'success', '✓ Connected to ComfyUI via helper!');
-                } else {
-                    const error = await response.json();
-                    throw new Error(error.error || `Server returned ${response.status}`);
-                }
-            } catch (error) {
-                console.error("Connection error:", error);
-                showStatus('test-status', 'error', `✗ Connection failed: ${error.message}`);
-            } finally {
-                btn.disabled = false;
-            }
-        }
-
-        // Send to ComfyUI via helper server
-        async function sendToComfyUI() {
-            const btn = document.getElementById("send-to-comfyui");
-
-            try {
-                btn.disabled = true;
-                showStatus('send-status', 'info', '⏳ Preparing export...');
-
-                if (!app.activeDocument) {
-                    throw new Error("No active document. Please open an image in Photoshop.");
-                }
-
-                const doc = app.activeDocument;
-                const exportType = document.querySelector('input[name="export-type"]:checked').value;
-
-                console.log("=".repeat(60));
-                console.log("EXPORT via Helper Server");
-                console.log("Export mode:", exportType === "layer" ? "ACTIVE LAYER" : "FULL DOCUMENT");
-                console.log("Document:", doc.name);
-                console.log("=".repeat(60));
-
-                // Use file picker - this grants proper permissions
-                showStatus('send-status', 'info', '📁 Choose where to save temporary file...');
-
-                const layerName = exportType === "layer" && doc.activeLayers.length > 0
-                    ? doc.activeLayers[0].name
-                    : doc.name;
-
-                const suggestedName = `${layerName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.png`;
-
-                // Get file handle from user (this grants permissions)
-                const file = await localFileSystem.getFileForSaving(suggestedName, {
-                    types: ["png"]
-                });
-
-                if (!file) {
-                    showStatus('send-status', 'warning', 'Export cancelled');
-                    return;
-                }
-
-                showStatus('send-status', 'info', '⏳ Exporting from Photoshop...');
-
-                // Save reference to original document
-                const originalDoc = doc;
-                const originalDocId = doc.id;
-
-                const core = require("photoshop").core;
-
-                await core.executeAsModal(async () => {
-                    let duplicateDoc = null;
-
-                    if (exportType === "layer" && originalDoc.activeLayers.length > 0) {
-                        // For layer export: duplicate layer to new document
-                        const layer = originalDoc.activeLayers[0];
-
-                        console.log("Duplicating layer:", layer.name);
-
-                        // Duplicate layer to new document
-                        await app.batchPlay([{
-                            _obj: "duplicate",
-                            _target: [{ _ref: "layer", _id: layer.id }],
-                            name: layer.name,
-                            to: { _ref: "document", _enum: "ordinal", _value: "first" }
-                        }], {});
-
-                        // The new document is now active
-                        duplicateDoc = app.activeDocument;
-                        console.log("Created new document:", duplicateDoc.name);
-
-                        // Flatten the new document (in case layer has effects/masks)
-                        await app.batchPlay([{
-                            _obj: "flattenImage"
-                        }], {});
-
-                    } else {
-                        // For full document: duplicate entire document
-                        console.log("Duplicating full document");
-
-                        await app.batchPlay([{
-                            _obj: "duplicate",
-                            _target: [{ _ref: "document", _id: originalDocId }]
-                        }], {});
-
-                        // The duplicated document is now active
-                        duplicateDoc = app.activeDocument;
-                        console.log("Created duplicate document:", duplicateDoc.name);
-
-                        // Flatten to ensure we get the visible result
-                        await app.batchPlay([{
-                            _obj: "flattenImage"
-                        }], {});
-                    }
-
-                    // Save the duplicate using saveAs.png
-                    console.log("Saving duplicate to file...");
-                    await duplicateDoc.saveAs.png(file, {
-                        compression: 6,
-                        interlaced: false
-                    }, true);
-
-                    console.log("Closing duplicate document...");
-                    // Close only the duplicate, not the original
-                    await duplicateDoc.close(require("photoshop").constants.SaveOptions.DONOTSAVECHANGES);
-
-                    // Make sure original document is still active
-                    await app.batchPlay([{
-                        _obj: "select",
-                        _target: [{ _ref: "document", _id: originalDocId }]
-                    }], {});
-
-                    console.log("Export complete, original document still open and active");
-
-                }, { commandName: "Export for ComfyUI" });
-
-                console.log("Export complete, reading file...");
-                showStatus('send-status', 'info', '⏳ Reading exported file...');
-
-                // Read the file we just exported
-                const arrayBuffer = await file.read({ format: formats.binary });
-                const fileBlob = new Blob([arrayBuffer], { type: 'image/png' });
-
-                console.log("File size:", fileBlob.size);
-
-                showStatus('send-status', 'info', '⏳ Uploading via helper server...');
-
-                // Send to helper server
-                const formData = new FormData();
-                formData.append('image', fileBlob, suggestedName);
-                formData.append('comfyui_url', getComfyUIUrl());
-
-                const response = await fetch(`${HELPER_SERVER_URL}/upload`, {
-                    method: "POST",
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || `Upload failed: ${response.status}`);
-                }
-
-                const result = await response.json();
-
-                // Clean up - delete temporary file
-                try {
-                    await file.delete();
-                    console.log("Cleaned up temporary file");
-                } catch (e) {
-                    console.log("Could not delete temp file (manual cleanup may be needed)");
-                }
-
-                showStatus('send-status', 'success', `✓ Uploaded! File: ${result.filename}`);
-
-            } catch (error) {
-                console.error("Send error:", error);
-                showStatus('send-status', 'error', `✗ Error: ${error.message}`);
-            } finally {
-                btn.disabled = false;
-            }
-        }
-
-        // Show status
-        function showStatus(elementId, type, message) {
-            const el = document.getElementById(elementId);
-            el.className = `status ${type}`;
-            el.textContent = message;
-        }
-    </script>
+    <script src="main.js"></script>
 </body>
 </html>
