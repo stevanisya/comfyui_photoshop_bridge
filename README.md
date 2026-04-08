@@ -7,7 +7,8 @@ Export images from Photoshop directly into ComfyUI running on RunPod — no clou
 ```
 Photoshop Plugin → saves PNG to exports/
                         ↓
-              fswatch + rsync (SSH)
+            macOS launchd + rsync (SSH)
+          (auto-triggers on file change)
                         ↓
 RunPod: /workspace/ComfyUI/input/photoshop_bridge/
                         ↓
@@ -26,13 +27,17 @@ cat ~/.ssh/id_ed25519.pub
 # Paste in RunPod → Settings → SSH Public Keys
 ```
 
-Install fswatch:
+Edit `sync-to-pod.sh` — set `POD_IP` and `POD_PORT` to match your pod's TCP SSH info.
+
+Install the background sync agent:
 
 ```bash
-brew install fswatch rsync
+bash install-sync.sh
 ```
 
-Edit `sync-to-pod.sh` — set `POD_IP` and `POD_PORT` to match your pod's TCP SSH info.
+This registers a macOS launchd agent that auto-runs rsync whenever files change in `exports/`. No terminal needed — it runs silently in the background.
+
+To remove it later: `bash uninstall-sync.sh`
 
 ### 2. Pod Setup (each new pod)
 
@@ -65,16 +70,12 @@ Load the `photoshop_plugin/` folder in Photoshop via **Plugins → Development �
 2. Choose **Active Layer** or **Full Document**
 3. Click **Export to ComfyUI**
 
-### 5. Start Syncing
-
-```bash
-bash sync-to-pod.sh
-```
-
-Files in `this repo's `exports/` folder` will auto-sync to `/workspace/ComfyUI/input/photoshop_bridge/` on your pod.
-
 ## Usage
 
 1. Export from Photoshop (layer or document)
-2. Sync script pushes the file to RunPod automatically
+2. Sync triggers automatically in the background
 3. In ComfyUI, select the file in the **Load from Photoshop** node and queue the workflow
+
+Images older than 30 days are auto-cleaned from `exports/` on each sync.
+
+Logs: `cat /tmp/comfyui-sync.log`
